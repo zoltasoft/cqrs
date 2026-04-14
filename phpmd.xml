@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<ruleset name="Zolta PHP Mess Detector Rules"
+    xmlns="https://pmd.github.io/pmd-6.0.0/ruleset"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://pmd.github.io/pmd-6.0.0/ruleset https://pmd.github.io/pmd-6.0.0/ruleset_xml_schema.xsd"
+>
+    <description>Minimal PHP Mess Detector rules focused on unused private members.</description>
+
+    <rule ref="rulesets/unusedcode.xml/UnusedPrivateField">
+        <properties>
+            <property name="exceptions" value="defaultName"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/unusedcode.xml/UnusedPrivateMethod"/>
+</ruleset>

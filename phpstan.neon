@@ -1,0 +1,31 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+
+    level: 6
+
+    paths:
+        - src
+        - tests
+
+    bootstrapFiles:
+        - vendor/autoload.php
+        - stubs/symfony.php
+        - stubs/doctrine.php
+        - stubs/laravel_app.php
+
+    scanFiles:
+        - stubs/phpstan/test-dummies.php
+
+    stubFiles:
+        - stubs/phpstan/app_helpers.php
+
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+
+    ignoreErrors:
+        - message: '#Class Zolta\\Symfony\\DependencyInjection\\SymfonyRegistrar not found#'
+          path: src/Adapters/Laravel/Providers/ProviderRegistry.php
+        - message: '#Class Zolta\\Laravel\\Resources\\GenericResource not found#'
+          path: src/Adapters/Laravel/config/zolta.php

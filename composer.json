@@ -1,0 +1,104 @@
+{
+	"name": "zoltasoft/cqrs",
+	"description": "CQRS application layer for PHP 8.2+ with command/query buses, decorator-based middleware pipeline, Result/Option monads, repository abstractions with caching, transaction management, domain event dispatching, and automatic handler discovery via attributes.",
+	"type": "library",
+	"license": "proprietary",
+	"keywords": [
+		"zolta",
+		"zolta-cqrs",
+		"cqrs",
+		"command-bus",
+		"query-bus",
+		"event-sourcing",
+		"domain-events",
+		"repository-pattern",
+		"transaction-management",
+		"ddd",
+		"hexagonal-architecture",
+		"application-layer",
+		"php",
+		"laravel"
+	],
+	"authors": [
+		{
+			"name": "Redouane Taleb",
+			"homepage": "https://github.com/redouane-taleb"
+		}
+	],
+	"require": {
+		"php": "^8.2",
+		"psr/container": "^2.0",
+		"symfony/process": "^7.3",
+		"symfony/serializer": "^7.3",
+		"symfony/property-access": "^7.3",
+		"symfony/property-info": "^7.3",
+		"zoltasoft/forge": "*"
+	},
+	"require-dev": {
+		"mockery/mockery": "^1.6",
+		"orchestra/testbench": "^10.6",
+		"phpunit/phpunit": "^11.5",
+		"laravel/pint": "^1.26",
+		"phpstan/phpstan": "^2.1",
+		"larastan/larastan": "^3.8",
+		"phpmd/phpmd": "^2.15",
+		"rector/rector": "^2.2"
+	},
+	"repositories": [
+		{
+			"type": "path",
+			"url": "../forge",
+			"options": {
+				"symlink": true
+			}
+		}
+	],
+	"autoload": {
+		"psr-4": {
+			"Zolta\\Cqrs\\": "src/Core/",
+			"Zolta\\Cqrs\\Laravel\\": "src/Adapters/Laravel/",
+            "Zolta\\Cqrs\\Support\\": "src/Support/"
+		},
+        "files": [
+			"src/Support/helpers.php"
+		]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Zolta\\Tests\\": "tests/"
+		}
+	},
+	"minimum-stability": "dev",
+	"prefer-stable": true,
+	"extra": {
+		"laravel": {
+			"providers": [
+				"Zolta\\Cqrs\\Laravel\\Providers\\ZoltaCqrsServiceProvider"
+			]
+		},
+		"zolta-framework-adapter": [
+			"Zolta\\Cqrs\\Laravel\\LaravelAdapter"
+		]
+	},
+	"scripts": {
+		"cache-zolta-maps": [
+			"@php artisan zolta:routes:cache --quiet || echo \"Zolta: routes cache skipped (Laravel app not fully set up yet)\""
+		],
+		"test": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/zolta-cqrs-phpunit.result.cache phpunit -c phpunit.xml",
+		"test:unit": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/zolta-cqrs-phpunit.result.cache phpunit -c phpunit.xml --testsuite Unit",
+		"test:integration": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/zolta-cqrs-phpunit.result.cache phpunit -c phpunit.xml --testsuite Integration",
+		"lint": "vendor/bin/pint",
+		"lint:test": "vendor/bin/pint --test",
+		"analyse": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php vendor/bin/phpstan analyse",
+		"rector": "vendor/bin/rector process --dry-run",
+		"rector:fix": "vendor/bin/rector process",
+		"md": "HOME=/tmp PDEPEND_CACHE_DIR=/tmp/pdepend-cache vendor/bin/phpmd src text phpmd.xml --exclude 'src/Symfony/Console/Command/*'",
+		"qa": [
+			"@lint:test",
+			"@analyse",
+			"@md",
+			"@rector",
+			"@test"
+		]
+	}
+}

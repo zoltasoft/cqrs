@@ -1,0 +1,185 @@
+Zolta Forge – Non-Commercial License
+
+Copyright (c) 2025 Redouane Taleb
+All rights reserved.
+
+1. Definitions
+
+For the purposes of this License:
+
+"Software" refers to Zolta Forge, its source code, assets, documentation, and all associated files.
+
+"Non-Commercial Use" means any use that does not directly or indirectly generate revenue, provide paid services, or contribute to commercial activity.
+
+"Commercial Use" includes any paid, revenue-generating, client, enterprise, or production activity, whether direct or indirect.
+
+"Production Use" means deploying, running, or integrating the Software in any environment accessed by users other than the developer, whether internal or external.
+
+"Internal Evaluation" means testing or experimentation within an organization, without delivering the Software to clients, customers, or production users.
+
+2. Overview
+
+Zolta Forge is provided publicly to allow developers and organizations to learn, evaluate, and experiment with the Software.
+
+The Software is free to use for Non-Commercial Use only.
+
+Any Commercial Use or Production Use requires prior written permission or a commercial license from the copyright holder.
+
+3. Permitted (Free) Use
+
+You may use the Software without charge for:
+
+✔ 3.1 Personal Use
+
+Learning
+
+Experimentation
+
+Practice
+
+Studying the architecture and concepts
+
+✔ 3.2 Educational Use
+
+Academic research
+
+School/university projects
+
+Classroom teaching
+
+Open educational materials
+
+✔ 3.3 Internal Company Evaluation (Non-Commercial)
+
+Testing internally
+
+Prototyping
+
+Internal proofs-of-concept
+
+Assessing suitability for future commercial licensing
+
+✔ 3.4 Non-Commercial Projects
+
+Hobby projects
+
+Open collaboration (non-commercial)
+
+Community and non-profit projects
+
+✔ 3.5 Installation & Access
+
+You are expressly permitted to:
+
+Install the Software via Composer
+
+Clone, view, and study the repository
+
+Use it in private repositories for valid non-commercial purposes
+
+4. Prohibited Without Permission
+
+You may NOT use the Software for any of the following unless you obtain written permission or a commercial license.
+
+✘ 4.1 Commercial Use
+
+Any usage involving revenue, business value, or commercial activity, including:
+
+Client or freelance work
+
+Paid products or features
+
+SaaS applications, APIs, or hosted services
+
+Internal business systems contributing to revenue
+
+Applications used by customers, clients, or employees
+
+Company products or tools
+
+Startups or professional projects
+
+✘ 4.2 Production Use
+
+Any real deployment outside local development, including:
+
+Production servers
+
+Staging or UAT environments
+
+Internal corporate apps
+
+Any environment accessible by anyone other than the developer
+
+✘ 4.3 Redistribution & Derivatives
+
+You may NOT:
+
+Redistribute or republish the Software
+
+Modify and publish derivative works
+
+Repackage or bundle it into your own frameworks or libraries
+
+Re-release the Software under any license
+
+Mirror the Software on external platforms
+
+Remove or alter copyright notices
+
+✘ 4.4 Unauthorized Sharing
+
+You may NOT:
+
+Share modified versions
+
+Provide private access to third parties
+
+Resell or sublicense the Software
+
+5. Commercial Licensing
+
+A commercial license is required for:
+
+Production Use
+
+Client projects
+
+SaaS or hosted platforms
+
+Enterprise or business environments
+
+Any revenue-generating activity
+
+Integrating the Software into a product or service
+
+For commercial licensing inquiries or partnership discussions, contact:
+
+📧 redouane.taleb1@gmail.com
+
+🐙 https://github.com/redouaneT
+
+6. Intellectual Property
+
+The Software is the exclusive intellectual property of Redouane Taleb.
+All rights, title, and interest remain fully reserved.
+
+No rights are granted by implication, estoppel, or otherwise.
+
+7. Governing Law
+
+This License shall be governed and interpreted in accordance with the laws of Canada.
+Any disputes shall be resolved exclusively in the courts of the copyright holder’s jurisdiction.
+
+8. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+9. License Changes
+
+The copyright holder reserves the right to modify, update, or replace the terms of this License for future versions of the Software at any time.
+
+Such changes do not apply retroactively.
+Each version of the Software remains governed by the License that was distributed with it.
