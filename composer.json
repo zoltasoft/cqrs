@@ -4,14 +4,13 @@
 	"type": "library",
 	"license": "proprietary",
 	"keywords": [
-		"zolta",
-		"zolta-cqrs",
+		"zoltasoft",
 		"cqrs",
-		"command-bus",
-		"query-bus",
+		"command",
+		"query",
 		"event-sourcing",
 		"domain-events",
-		"repository-pattern",
+		"repository",
 		"transaction-management",
 		"ddd",
 		"hexagonal-architecture",
@@ -22,7 +21,7 @@
 	"authors": [
 		{
 			"name": "Redouane Taleb",
-			"homepage": "https://github.com/redouane-taleb"
+			"homepage": "https://github.com/redouaneT"
 		}
 	],
 	"require": {
@@ -84,12 +83,12 @@
 		"cache-zolta-maps": [
 			"@php artisan zolta:routes:cache --quiet || echo \"Zolta: routes cache skipped (Laravel app not fully set up yet)\""
 		],
-		"test": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/zolta-cqrs-phpunit.result.cache phpunit -c phpunit.xml",
-		"test:unit": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/zolta-cqrs-phpunit.result.cache phpunit -c phpunit.xml --testsuite Unit",
-		"test:integration": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/zolta-cqrs-phpunit.result.cache phpunit -c phpunit.xml --testsuite Integration",
+		"test": "APP_SERVICES_CACHE=/tmp/cqrs-services.php APP_PACKAGES_CACHE=/tmp/cqrs-packages.php APP_CONFIG_CACHE=/tmp/cqrs-config.php APP_ROUTES_CACHE=/tmp/cqrs-routes.php APP_EVENTS_CACHE=/tmp/cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/cqrs-phpunit.result.cache phpunit -c phpunit.xml",
+		"test:unit": "APP_SERVICES_CACHE=/tmp/cqrs-services.php APP_PACKAGES_CACHE=/tmp/cqrs-packages.php APP_CONFIG_CACHE=/tmp/cqrs-config.php APP_ROUTES_CACHE=/tmp/cqrs-routes.php APP_EVENTS_CACHE=/tmp/cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/cqrs-phpunit.result.cache phpunit -c phpunit.xml --testsuite Unit",
+		"test:integration": "APP_SERVICES_CACHE=/tmp/cqrs-services.php APP_PACKAGES_CACHE=/tmp/cqrs-packages.php APP_CONFIG_CACHE=/tmp/cqrs-config.php APP_ROUTES_CACHE=/tmp/cqrs-routes.php APP_EVENTS_CACHE=/tmp/cqrs-events.php PHPUNIT_RESULT_CACHE=/tmp/cqrs-phpunit.result.cache phpunit -c phpunit.xml --testsuite Integration",
 		"lint": "vendor/bin/pint",
 		"lint:test": "vendor/bin/pint --test",
-		"analyse": "APP_SERVICES_CACHE=/tmp/zolta-cqrs-services.php APP_PACKAGES_CACHE=/tmp/zolta-cqrs-packages.php APP_CONFIG_CACHE=/tmp/zolta-cqrs-config.php APP_ROUTES_CACHE=/tmp/zolta-cqrs-routes.php APP_EVENTS_CACHE=/tmp/zolta-cqrs-events.php vendor/bin/phpstan analyse",
+		"analyse": "APP_SERVICES_CACHE=/tmp/cqrs-services.php APP_PACKAGES_CACHE=/tmp/cqrs-packages.php APP_CONFIG_CACHE=/tmp/cqrs-config.php APP_ROUTES_CACHE=/tmp/cqrs-routes.php APP_EVENTS_CACHE=/tmp/cqrs-events.php vendor/bin/phpstan analyse",
 		"rector": "vendor/bin/rector process --dry-run",
 		"rector:fix": "vendor/bin/rector process",
 		"md": "HOME=/tmp PDEPEND_CACHE_DIR=/tmp/pdepend-cache vendor/bin/phpmd src text phpmd.xml --exclude 'src/Symfony/Console/Command/*'",
