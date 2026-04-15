@@ -15,7 +15,7 @@ class ZoltaCqrsServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/zolta.php', 'zolta');
+        $this->mergeConfigFrom(__DIR__.'/../config/zolta.php', 'zolta');
 
         // Transaction support
         $this->app->bind(TransactionManagerInterface::class, LaravelTransactionManager::class);
@@ -46,7 +46,7 @@ class ZoltaCqrsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__ . '/../config/zolta.php' => config_path('zolta.php'),
+            __DIR__.'/../config/zolta.php' => config_path('zolta.php'),
         ], 'zolta-config');
     }
 }

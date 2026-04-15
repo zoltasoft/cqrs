@@ -1,0 +1,30 @@
+# Composer / PHP
+/vendor/
+/composer.lock
+
+# Build / artifacts
+/build/
+/dist/
+
+# PHPStorm / IDE
+/.idea/
+
+# Local environment
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test and coverage
+/coverage/
+
+# OS files
+.DS_Store
+
+# Keep hand-written `stubs/` checked in (used by PHPStan), but ignore generated subfolders
+# If CI generates `stubs/generated/` then ignore it; otherwise keep stubs tracked.
+stubs/generated/
+

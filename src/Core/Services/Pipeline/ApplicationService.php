@@ -82,7 +82,7 @@ class ApplicationService
         } catch (\Throwable $e) {
             $this->capture(
                 ['error' => $e],
-                $this->resolveMessageAlias($message) . ':error'
+                $this->resolveMessageAlias($message).':error'
             );
 
             if ($this->isCommandMessage($message)) {
@@ -106,7 +106,7 @@ class ApplicationService
      */
     public function capture(array $data, ?string $alias = null): void
     {
-        $alias ??= '__manual__.' . count($this->captured);
+        $alias ??= '__manual__.'.count($this->captured);
         $this->captured[$alias] = $data;
     }
 
@@ -187,7 +187,7 @@ class ApplicationService
                 }
                 $context = array_merge($context, $payload);
                 $context[$alias] = $payload;
-                $context['@' . $alias] = $payload;
+                $context['@'.$alias] = $payload;
             }
             $rootContext = $context;
         } elseif ($rootContext === null) {
@@ -222,7 +222,7 @@ class ApplicationService
                 }
 
                 if (is_object($value)) {
-                    $getter = 'get' . ucfirst($segment);
+                    $getter = 'get'.ucfirst($segment);
                     if (method_exists($value, $getter)) {
                         $value = $value->{$getter}();
 
@@ -300,7 +300,7 @@ class ApplicationService
 
                     // 🔧 Pre-normalize the child map ONCE:
                     $normalizedChildMap = $this->stripPrefixFromMap($path, $contextClass);
-                    $normalizedChildMap = $this->stripPrefixFromMap($normalizedChildMap, $contextClass . 's');
+                    $normalizedChildMap = $this->stripPrefixFromMap($normalizedChildMap, $contextClass.'s');
 
                     foreach ($collectionContext as $item) {
                         // Now each scalar like "role.permissions.id.value" becomes "id.value"
@@ -384,7 +384,7 @@ class ApplicationService
         $out = [];
         foreach ($map as $k => $v) {
             if (is_string($v)) {
-                $out[$k] = str_starts_with($v, $prefix . '.') ? substr($v, strlen($prefix) + 1) : $v;
+                $out[$k] = str_starts_with($v, $prefix.'.') ? substr($v, strlen($prefix) + 1) : $v;
             } elseif (is_array($v)) {
                 $out[$k] = $this->stripPrefixFromMap($v, $prefix);
             } else {
@@ -414,13 +414,13 @@ class ApplicationService
             }
 
             // Case 1b: first is plural self, e.g. "permissions.id" in Permission context
-            if ($first === $class . 's') {
+            if ($first === $class.'s') {
                 return implode('.', array_slice($segments, 1));
             }
 
             // Case 2: parent + plural child, e.g. "role.permissions.x" in Permission context
             // Strip the first TWO segments so we land at child-relative: "x"
-            if ($second === $class . 's') {
+            if ($second === $class.'s') {
                 return implode('.', array_slice($segments, 2));
             }
 

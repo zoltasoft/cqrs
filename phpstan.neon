@@ -29,3 +29,13 @@ parameters:
           path: src/Adapters/Laravel/Providers/ProviderRegistry.php
         - message: '#Class Zolta\\Laravel\\Resources\\GenericResource not found#'
           path: src/Adapters/Laravel/config/zolta.php
+        - identifier: argument.type
+          path: src/Adapters/Laravel/Eloquent/EloquentBaseRepository.php
+        - identifier: argument.templateType
+          path: src/Adapters/Laravel/Providers/BaseMapServiceProvider.php
+        - identifier: argument.templateType
+          path: src/Adapters/Laravel/Services/LaravelEventDispatcher.php
+        - identifier: argument.templateType
+          path: src/Core/Commands/ExecuteCommandJob.php
+        - identifier: argument.templateType
+          path: src/Core/Commands/WorkerAwareRoutingCommandBus.php
