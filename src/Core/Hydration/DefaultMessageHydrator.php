@@ -18,6 +18,59 @@ use Zolta\Domain\ValueObjects\VOConstructionContext;
 
 final class DefaultMessageHydrator implements MessageHydratorInterface
 {
+    private const KIND_COMMAND_WITH_SCHEMA = 1;
+
+    private const KIND_COMMAND_NO_SCHEMA = 2;
+
+    private const KIND_VO = 3;
+
+    private const KIND_GENERIC = 4;
+
+    /** @var array<string, int> */
+    private static array $classKindCache = [];
+
+    /** @var array<string, \ReflectionClass<object>> */
+    private static array $reflectionCache = [];
+
+    /**
+     * Determine and cache the class kind (command-with-schema, command-no-schema, VO, or generic).
+     *
+     * @param  class-string  $target
+     */
+    private function classKind(string $target): int
+    {
+        if (isset(self::$classKindCache[$target])) {
+            return self::$classKindCache[$target];
+        }
+
+        $ref = $this->cachedReflection($target);
+
+        if (
+            $ref->implementsInterface(CommandInterface::class)
+            || $ref->implementsInterface(QueryInterface::class)
+        ) {
+            $kind = method_exists($target, 'schema')
+                ? self::KIND_COMMAND_WITH_SCHEMA
+                : self::KIND_COMMAND_NO_SCHEMA;
+        } elseif (is_subclass_of($target, VO::class)) {
+            $kind = self::KIND_VO;
+        } else {
+            $kind = self::KIND_GENERIC;
+        }
+
+        return self::$classKindCache[$target] = $kind;
+    }
+
+    /**
+     * @param  class-string  $target
+     * @return \ReflectionClass<object>
+     */
+    private function cachedReflection(string $target): \ReflectionClass
+    {
+        return self::$reflectionCache[$target]
+            ??= new \ReflectionClass($target);
+    }
+
     /**
      * Hydrate any ValueObject, Command, Query, or generic class.
      *
@@ -39,33 +92,30 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         // warm cache for class attributes (optional)
         ReflectionCache::getClassAttributes($target);
 
-        $reflectionClass = new ReflectionClass($target);
+        $kind = $this->classKind($target);
 
-        // Command / Query: build from schema() OR fallback to constructor mapping when schema absent
-        if (
-            $reflectionClass->implementsInterface(CommandInterface::class)
-            || $reflectionClass->implementsInterface(QueryInterface::class)
-        ) {
-            if (method_exists($target, 'schema')) {
-                return $this->buildCommandFromSchema($target, $data);
-            }
+        return match ($kind) {
+            self::KIND_COMMAND_WITH_SCHEMA => $this->buildCommandFromSchema($target, $data),
+            self::KIND_COMMAND_NO_SCHEMA => $this->buildObjectFromConstructor($target, $data),
+            self::KIND_VO => $this->buildVo($data, $target),
+            default => $this->buildGeneric($target, $data),
+        };
+    }
 
-            // no schema provided: try to map data directly to constructor
-            return $this->buildObjectFromConstructor($target, $data);
-        }
-
-        // ValueObject subclass -> buildVo
-        if (is_subclass_of($target, VO::class)) {
-            return $this->buildVo($data, $target);
-        }
-
-        // Generic class fallback: instantiate by mapping $data to ctor params
+    /**
+     * Build a generic class instance from $data.
+     *
+     * @param  class-string  $target
+     * @param  array<string,mixed>  $data
+     */
+    private function buildGeneric(string $target, array $data): object
+    {
+        $reflectionClass = $this->cachedReflection($target);
         $ctor = $reflectionClass->getConstructor();
         if ($ctor === null) {
             return new $target;
         }
 
-        // If associative array: map by name; else positional
         $ctorArgs = [];
         if ($this->isAssoc($data)) {
             $ctorArgs = $this->buildArgsForClass($reflectionClass, $data);
@@ -172,7 +222,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         }
 
         // Map schema to constructor args for the command itself
-        $cmdRef = new ReflectionClass($commandClass);
+        $cmdRef = $this->cachedReflection($commandClass);
         $ctor = $cmdRef->getConstructor();
         $ctorParams = $ctor ? $ctor->getParameters() : [];
 
@@ -377,11 +427,11 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             return $obj->{$paramName};
         }
 
-        $getter = 'get'.ucfirst($paramName);
+        $getter = 'get' . ucfirst($paramName);
         if (method_exists($obj, $getter)) {
             return $obj->{$getter}();
         }
-        $is = 'is'.ucfirst($paramName);
+        $is = 'is' . ucfirst($paramName);
         if (method_exists($obj, $is)) {
             return $obj->{$is}();
         }
@@ -399,8 +449,8 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             if (property_exists($obj, $alias)) {
                 return $obj->{$alias};
             }
-            if (method_exists($obj, 'get'.ucfirst($alias))) {
-                return $obj->{'get'.ucfirst($alias)}();
+            if (method_exists($obj, 'get' . ucfirst($alias))) {
+                return $obj->{'get' . ucfirst($alias)}();
             }
         }
 
@@ -456,7 +506,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             throw new InvalidArgumentException("VO class {$voClass} not found");
         }
 
-        $reflectionClass = new ReflectionClass($voClass);
+        $reflectionClass = $this->cachedReflection($voClass);
         $ctor = $reflectionClass->getConstructor();
         $params = $ctor ? $ctor->getParameters() : [];
 
@@ -569,7 +619,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             return $raw;
         }
 
-        $reflectionClass = new ReflectionClass($voSubClass);
+        $reflectionClass = $this->cachedReflection($voSubClass);
         $voCtor = $reflectionClass->getConstructor();
         $voCtorParams = $voCtor ? $voCtor->getParameters() : [];
 
@@ -804,7 +854,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             throw new InvalidArgumentException("Class {$class} not found");
         }
 
-        $ref = new ReflectionClass($class);
+        $ref = $this->cachedReflection($class);
         $ctor = $ref->getConstructor();
 
         if ($ctor === null) {
@@ -846,7 +896,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             // else if top-level assoc data has keys that overlap the VO properties -> create subset
             if ($raw === null && $typeName !== null && class_exists($typeName) && is_subclass_of($typeName, ValueObject::class) && $this->isAssoc($data)) {
                 $voRef = new ReflectionClass($typeName);
-                $voProps = array_map(fn (\ReflectionProperty $reflectionProperty): string => $reflectionProperty->getName(), $voRef->getProperties());
+                $voProps = array_map(fn(\ReflectionProperty $reflectionProperty): string => $reflectionProperty->getName(), $voRef->getProperties());
                 $subset = [];
                 foreach ($data as $k => $v) {
                     if (in_array($k, $voProps, true)) {
@@ -1037,7 +1087,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         // Boolean heuristics: if input is bool, attempt common mappings
         if (is_bool($mainVal)) {
             // Common case: Terms enum with accepted/declined
-            $names = array_map(fn (\UnitEnum $unitEnum): string => $unitEnum->name, $cases);
+            $names = array_map(fn(\UnitEnum $unitEnum): string => $unitEnum->name, $cases);
             if (in_array('accepted', $names, true) && in_array('declined', $names, true)) {
                 return $mainVal ? $enumClass::accepted : $enumClass::declined;
             }
@@ -1083,13 +1133,13 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
 
             if (
                 in_array($s, $truthy, true)
-                && in_array('accepted', array_map(fn (\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
+                && in_array('accepted', array_map(fn(\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
             ) {
                 return $enumClass::accepted;
             }
             if (
                 in_array($s, $falsy, true)
-                && in_array('declined', array_map(fn (\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
+                && in_array('declined', array_map(fn(\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
             ) {
                 return $enumClass::declined;
             }
