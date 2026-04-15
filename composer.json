@@ -1,10 +1,10 @@
 {
-	"name": "zoltasoft/cqrs",
+	"name": "zolta/cqrs",
 	"description": "CQRS application layer for PHP 8.2+ with command/query buses, decorator-based middleware pipeline, Result/Option monads, repository abstractions with caching, transaction management, domain event dispatching, and automatic handler discovery via attributes.",
 	"type": "library",
 	"license": "proprietary",
 	"keywords": [
-		"zoltasoft",
+		"zolta",
 		"cqrs",
 		"command",
 		"query",
@@ -31,7 +31,7 @@
 		"symfony/serializer": "^7.3",
 		"symfony/property-access": "^7.3",
 		"symfony/property-info": "^7.3",
-		"zoltasoft/forge": "*"
+		"zolta/forge": "*"
 	},
 	"require-dev": {
 		"mockery/mockery": "^1.6",

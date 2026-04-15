@@ -1,4 +1,4 @@
-zoltasoft/cqrs – Non-Commercial License
+zolta/cqrs – Non-Commercial License
 
 Copyright (c) 2026 Redouane Taleb
 All rights reserved.
@@ -7,7 +7,7 @@ All rights reserved.
 
 For the purposes of this License:
 
-"Software" refers to zoltasoft/cqrs, its source code, assets, documentation, and all associated files.
+"Software" refers to zolta/cqrs, its source code, assets, documentation, and all associated files.
 
 "Non-Commercial Use" means any use that does not directly or indirectly generate revenue, provide paid services, or contribute to commercial activity.
 
@@ -19,7 +19,7 @@ For the purposes of this License:
 
 2. Overview
 
-zoltasoft/cqrs is provided publicly to allow developers and organizations to learn, evaluate, and experiment with the Software.
+zolta/cqrs is provided publicly to allow developers and organizations to learn, evaluate, and experiment with the Software.
 
 The Software is free to use for Non-Commercial Use only.
 
@@ -155,7 +155,7 @@ Integrating the Software into a product or service
 
 For commercial licensing inquiries or partnership discussions, contact:
 
-📧 redouane.taleb1@gmail.com
+📧 redouanet.zoltasoft@gmail.com
 
 🐙 https://github.com/redouaneT
 
