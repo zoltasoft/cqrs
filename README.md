@@ -237,5 +237,5 @@ Full documentation is available in the [`docs/`](./docs/) directory, organized f
 
 ## License
 
-**Proprietary — © 2025 Redouane Taleb**
+**Proprietary — © 2026 Redouane Taleb**
 Unauthorized copying, modification, or distribution is prohibited.
