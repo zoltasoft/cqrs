@@ -123,7 +123,7 @@ abstract class AbstractRepository
                 'include' => $repositoryQuery->includes(),
                 'sort' => $repositoryQuery->sort(),
             ],
-            fn (): iterable => $this->fetchAll($query),
+            fn(): iterable => $this->fetchAll($query),
             $this->cacheTtlSeconds()
         );
     }
@@ -147,7 +147,7 @@ abstract class AbstractRepository
                 'include' => $repositoryQuery->includes(),
                 'sort' => $repositoryQuery->sort(),
             ],
-            fn (): mixed => $this->fetchFirst($query),
+            fn(): mixed => $this->fetchFirst($query),
             $this->cacheTtlSeconds()
         );
     }
@@ -170,7 +170,7 @@ abstract class AbstractRepository
                 'id' => (string) $id,
                 'includes' => $with,
             ],
-            fn (): mixed => $this->fetchById($id, $with),
+            fn(): mixed => $this->fetchById($id, $with),
             $this->cacheTtlSeconds()
         );
     }

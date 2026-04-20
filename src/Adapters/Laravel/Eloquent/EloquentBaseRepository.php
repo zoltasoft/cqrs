@@ -17,6 +17,7 @@ use Zolta\Cqrs\Repositories\Cache\RepositoryCache;
 use Zolta\Cqrs\Repositories\Query\Interfaces\QueryDefinition;
 use Zolta\Cqrs\Repositories\Query\RepositoryQuery;
 use Zolta\Cqrs\Repositories\Query\Services\AbstractRepository;
+use Zolta\Domain\ValueObjects\Pagination;
 
 /**
  * Base repository for Eloquent-backed infrastructure implementations.
@@ -446,11 +447,18 @@ abstract class EloquentBaseRepository extends AbstractRepository
     }
 
     /**
-     * @return LengthAwarePaginator<int, TModel>
+     * @return Pagination<int, TModel>
      */
-    protected function fetchPaginated(mixed $query, int $page, int $limit): LengthAwarePaginator
+    protected function fetchPaginated(mixed $query, int $page, int $limit): Pagination
     {
-        return $query->paginate($limit, ['*'], 'page', $page);
+        $lengthAwarePaginator =  $query->paginate($limit, ['*'], 'page', $page);
+        return new Pagination(
+            items: $lengthAwarePaginator->items(),
+            total: $lengthAwarePaginator->total(),
+            perPage: $lengthAwarePaginator->perPage(),
+            currentPage: $lengthAwarePaginator->currentPage(),
+            lastPage: $lengthAwarePaginator->lastPage(),
+        );
     }
 
     /**
