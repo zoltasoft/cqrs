@@ -27,7 +27,7 @@ class GetUserHandler
     /** @return array<string, mixed> */
     public function __invoke(GetUserQuery $query): array
     {
-        return ['id' => $query->id, 'name' => 'User #' . $query->id];
+        return ['id' => $query->id, 'name' => 'User #'.$query->id];
     }
 }
 

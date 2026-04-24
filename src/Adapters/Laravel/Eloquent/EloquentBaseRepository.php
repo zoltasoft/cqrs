@@ -6,7 +6,6 @@ namespace Zolta\Cqrs\Laravel\Eloquent;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\LazyCollection;
 use Zolta\Cqrs\Laravel\Eloquent\Contracts\FilterInterface;
 use Zolta\Cqrs\Laravel\Eloquent\Traits\EloquentCrud;
@@ -446,12 +445,10 @@ abstract class EloquentBaseRepository extends AbstractRepository
         return $model::with($include)->find($idValue);
     }
 
-    /**
-     * @return Pagination<int, TModel>
-     */
     protected function fetchPaginated(mixed $query, int $page, int $limit): Pagination
     {
-        $lengthAwarePaginator =  $query->paginate($limit, ['*'], 'page', $page);
+        $lengthAwarePaginator = $query->paginate($limit, ['*'], 'page', $page);
+
         return new Pagination(
             items: $lengthAwarePaginator->items(),
             total: $lengthAwarePaginator->total(),

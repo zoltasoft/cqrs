@@ -29,7 +29,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
     /** @var array<string, int> */
     private static array $classKindCache = [];
 
-    /** @var array<string, \ReflectionClass<object>> */
+    /** @var array<string, ReflectionClass<object>> */
     private static array $reflectionCache = [];
 
     /**
@@ -43,11 +43,11 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             return self::$classKindCache[$target];
         }
 
-        $ref = $this->cachedReflection($target);
+        $reflectionClass = $this->cachedReflection($target);
 
         if (
-            $ref->implementsInterface(CommandInterface::class)
-            || $ref->implementsInterface(QueryInterface::class)
+            $reflectionClass->implementsInterface(CommandInterface::class)
+            || $reflectionClass->implementsInterface(QueryInterface::class)
         ) {
             $kind = method_exists($target, 'schema')
                 ? self::KIND_COMMAND_WITH_SCHEMA
@@ -63,12 +63,12 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
 
     /**
      * @param  class-string  $target
-     * @return \ReflectionClass<object>
+     * @return ReflectionClass<object>
      */
-    private function cachedReflection(string $target): \ReflectionClass
+    private function cachedReflection(string $target): ReflectionClass
     {
         return self::$reflectionCache[$target]
-            ??= new \ReflectionClass($target);
+            ??= new ReflectionClass($target);
     }
 
     /**
@@ -222,8 +222,8 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         }
 
         // Map schema to constructor args for the command itself
-        $cmdRef = $this->cachedReflection($commandClass);
-        $ctor = $cmdRef->getConstructor();
+        $reflectionClass = $this->cachedReflection($commandClass);
+        $ctor = $reflectionClass->getConstructor();
         $ctorParams = $ctor ? $ctor->getParameters() : [];
 
         $ctorArgs = [];
@@ -302,7 +302,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         }
 
         // instantiate the command
-        return $cmdRef->newInstanceArgs($ctorArgs);
+        return $reflectionClass->newInstanceArgs($ctorArgs);
     }
 
     /**
@@ -427,11 +427,11 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             return $obj->{$paramName};
         }
 
-        $getter = 'get' . ucfirst($paramName);
+        $getter = 'get'.ucfirst($paramName);
         if (method_exists($obj, $getter)) {
             return $obj->{$getter}();
         }
-        $is = 'is' . ucfirst($paramName);
+        $is = 'is'.ucfirst($paramName);
         if (method_exists($obj, $is)) {
             return $obj->{$is}();
         }
@@ -449,8 +449,8 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             if (property_exists($obj, $alias)) {
                 return $obj->{$alias};
             }
-            if (method_exists($obj, 'get' . ucfirst($alias))) {
-                return $obj->{'get' . ucfirst($alias)}();
+            if (method_exists($obj, 'get'.ucfirst($alias))) {
+                return $obj->{'get'.ucfirst($alias)}();
             }
         }
 
@@ -896,7 +896,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
             // else if top-level assoc data has keys that overlap the VO properties -> create subset
             if ($raw === null && $typeName !== null && class_exists($typeName) && is_subclass_of($typeName, ValueObject::class) && $this->isAssoc($data)) {
                 $voRef = new ReflectionClass($typeName);
-                $voProps = array_map(fn(\ReflectionProperty $reflectionProperty): string => $reflectionProperty->getName(), $voRef->getProperties());
+                $voProps = array_map(fn (\ReflectionProperty $reflectionProperty): string => $reflectionProperty->getName(), $voRef->getProperties());
                 $subset = [];
                 foreach ($data as $k => $v) {
                     if (in_array($k, $voProps, true)) {
@@ -1087,7 +1087,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         // Boolean heuristics: if input is bool, attempt common mappings
         if (is_bool($mainVal)) {
             // Common case: Terms enum with accepted/declined
-            $names = array_map(fn(\UnitEnum $unitEnum): string => $unitEnum->name, $cases);
+            $names = array_map(fn (\UnitEnum $unitEnum): string => $unitEnum->name, $cases);
             if (in_array('accepted', $names, true) && in_array('declined', $names, true)) {
                 return $mainVal ? $enumClass::accepted : $enumClass::declined;
             }
@@ -1133,13 +1133,13 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
 
             if (
                 in_array($s, $truthy, true)
-                && in_array('accepted', array_map(fn(\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
+                && in_array('accepted', array_map(fn (\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
             ) {
                 return $enumClass::accepted;
             }
             if (
                 in_array($s, $falsy, true)
-                && in_array('declined', array_map(fn(\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
+                && in_array('declined', array_map(fn (\UnitEnum $unitEnum): string => $unitEnum->name, $cases), true)
             ) {
                 return $enumClass::declined;
             }

@@ -31,7 +31,7 @@
 		"symfony/serializer": "^7.3",
 		"symfony/property-access": "^7.3",
 		"symfony/property-info": "^7.3",
-		"zolta/forge": "*"
+		"zolta/forge": "^1.0"
 	},
 	"require-dev": {
 		"mockery/mockery": "^1.6",
@@ -43,15 +43,6 @@
 		"phpmd/phpmd": "^2.15",
 		"rector/rector": "^2.2"
 	},
-	"repositories": [
-		{
-			"type": "path",
-			"url": "../forge",
-			"options": {
-				"symlink": true
-			}
-		}
-	],
 	"autoload": {
 		"psr-4": {
 			"Zolta\\Cqrs\\": "src/Core/",
