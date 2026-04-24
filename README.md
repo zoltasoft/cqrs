@@ -3,7 +3,7 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8.2+-blue.svg)](https://php.net/)
 [![PHPStan Level](https://img.shields.io/badge/PHPStan-Level%206-brightgreen.svg)](https://phpstan.org/)
 [![Laravel Version](https://img.shields.io/badge/Laravel-10+-red.svg)](https://laravel.com/)
-[![License](https://img.shields.io/badge/License-Proprietary-orange.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **CQRS that fits in your stack, not the other way around.**
 
@@ -388,5 +388,4 @@ Full documentation is available in the [`docs/`](./docs/) directory, organized f
 
 ## License
 
-**Proprietary — © 2026 Redouane Taleb**
-Unauthorized copying, modification, or distribution is prohibited.
+[MIT](LICENSE) © 2026 Redouane Taleb
