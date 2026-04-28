@@ -36,7 +36,6 @@ abstract class EloquentBaseRepository extends AbstractRepository
 
     private ?CacheKeyGenerator $cacheKeyGenerator = null;
 
-
     protected function cache(): RepositoryCache
     {
         if (! isset($this->repositoryCache)) {
@@ -47,6 +46,7 @@ abstract class EloquentBaseRepository extends AbstractRepository
                 useTaggedCache: $this->useTaggedCache,
             );
         }
+
         return $this->repositoryCache;
     }
 
@@ -429,7 +429,6 @@ abstract class EloquentBaseRepository extends AbstractRepository
             $builder->limit($limit);
         }
     }
-
 
     /**
      * @return iterable<TModel>

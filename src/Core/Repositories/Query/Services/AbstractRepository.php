@@ -31,7 +31,6 @@ abstract class AbstractRepository
 
     protected string $defaultOperator = 'eq';
 
-
     /**
      * Cache TTL in seconds (default 300s = 5min).
      */
@@ -70,14 +69,15 @@ abstract class AbstractRepository
      * Pipeline orchestration: applies filters, includes, sorting, fields, limit.
      * Adapters should call this after buildQuery.
      */
-    protected function finalizeQuery(mixed $query, RepositoryQuery $rq): mixed
+    protected function finalizeQuery(mixed $query, RepositoryQuery $repositoryQuery): mixed
     {
-        $definition = $this->queryDefinition();
-        $this->applyFilters($query, $rq, $definition);
-        $this->applyIncludes($query, $rq->includes());
-        $this->applySorting($query, $rq->sort(), $definition);
-        $this->applyFieldSelection($query, $rq->fields());
-        $this->applyLimit($query, $rq->limit());
+        $queryDefinition = $this->queryDefinition();
+        $this->applyFilters($query, $repositoryQuery, $queryDefinition);
+        $this->applyIncludes($query, $repositoryQuery->includes());
+        $this->applySorting($query, $repositoryQuery->sort(), $queryDefinition);
+        $this->applyFieldSelection($query, $repositoryQuery->fields());
+        $this->applyLimit($query, $repositoryQuery->limit());
+
         return $query;
     }
 
@@ -94,7 +94,8 @@ abstract class AbstractRepository
 
     /**
      * Unified query creation helper.
-     * @param array|RepositoryQuery|AbstractQueryOptions|null $source
+     *
+     * @param  array<string, mixed>|RepositoryQuery|AbstractQueryOptions|null  $source
      */
     protected function query(array|RepositoryQuery|AbstractQueryOptions|null $source = null): RepositoryQuery
     {
@@ -174,7 +175,7 @@ abstract class AbstractRepository
         return $this->cache()->remember(
             'all',
             $cacheKey,
-            fn(): iterable => $this->fetchAll($query),
+            fn (): iterable => $this->fetchAll($query),
             $this->cacheTtlSeconds()
         );
     }
@@ -203,7 +204,7 @@ abstract class AbstractRepository
         return $this->cache()->remember(
             'first',
             $cacheKey,
-            fn(): mixed => $this->fetchFirst($query),
+            fn (): mixed => $this->fetchFirst($query),
             $this->cacheTtlSeconds()
         );
     }
@@ -213,8 +214,8 @@ abstract class AbstractRepository
      */
     public function show(string|int $id, array $include = []): mixed
     {
-        $definition = $this->queryDefinition();
-        $with = array_values(array_intersect($include, $definition->allowedIncludes()));
+        $queryDefinition = $this->queryDefinition();
+        $with = array_values(array_intersect($include, $queryDefinition->allowedIncludes()));
         sort($with);
 
         $cacheKey = [
@@ -229,7 +230,7 @@ abstract class AbstractRepository
         return $this->cache()->remember(
             'entity',
             $cacheKey,
-            fn(): mixed => $this->fetchById($id, $with),
+            fn (): mixed => $this->fetchById($id, $with),
             $this->cacheTtlSeconds()
         );
     }
@@ -256,15 +257,15 @@ abstract class AbstractRepository
         $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
         $limit = $repositoryQuery->limit() ?? 25;
-        $page  = $repositoryQuery->page() ?? 1;
+        $page = $repositoryQuery->page() ?? 1;
 
         $cacheKey = [
             'filters' => $repositoryQuery->filters(),
             'include' => $repositoryQuery->includes(),
-            'sort'    => $repositoryQuery->sort(),
-            'fields'  => $repositoryQuery->fields(),
-            'limit'   => $limit,
-            'page'    => $page,
+            'sort' => $repositoryQuery->sort(),
+            'fields' => $repositoryQuery->fields(),
+            'limit' => $limit,
+            'page' => $page,
         ];
 
         if (! $this->enableReadCaching) {
@@ -274,7 +275,7 @@ abstract class AbstractRepository
         return $this->cache()->remember(
             'paginate',
             $cacheKey,
-            fn(): mixed => $this->fetchPaginated($query, $page, $limit),
+            fn (): mixed => $this->fetchPaginated($query, $page, $limit),
             $this->cacheTtlSeconds()
         );
     }
@@ -300,7 +301,7 @@ abstract class AbstractRepository
     public function count(AbstractQueryOptions|RepositoryQuery|array|null $opts = null): int
     {
         $repositoryQuery = $this->repositoryQuery($opts);
-        $query = $this->buildQuery($repositoryQuery);
+        $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
         $cacheKey = [
             'filters' => $repositoryQuery->filters(),
@@ -313,7 +314,7 @@ abstract class AbstractRepository
         return $this->cache()->remember(
             'count',
             $cacheKey,
-            fn(): int => $this->fetchCount($query),
+            fn (): int => $this->fetchCount($query),
             $this->cacheTtlSeconds()
         );
     }

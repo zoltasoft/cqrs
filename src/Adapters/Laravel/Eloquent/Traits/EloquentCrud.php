@@ -6,6 +6,7 @@ namespace Zolta\Cqrs\Laravel\Eloquent\Traits;
 
 use DomainException;
 use Illuminate\Database\Eloquent\Model;
+use Zolta\Cqrs\Repositories\Cache\RepositoryCache;
 use Zolta\Domain\ValueObjects\AbstractUuid;
 
 /**
@@ -21,12 +22,11 @@ trait EloquentCrud
         try {
             $model->save();
             $this->invalidateModelCaches($model->getKey());
-            if (method_exists($this, 'afterWrite')) {
-                $this->afterWrite();
-            }
+            $this->afterWrite();
+
             return $model->fresh($this->getAllowedRelations());
         } catch (\Throwable $ex) {
-            throw new DomainException('Failed to create resource: ' . $ex->getMessage(), 0, $ex);
+            throw new DomainException('Failed to create resource: '.$ex->getMessage(), 0, $ex);
         }
     }
 
@@ -42,12 +42,11 @@ trait EloquentCrud
 
             $model->save();
             $this->invalidateModelCaches($model->getKey());
-            if (method_exists($this, 'afterWrite')) {
-                $this->afterWrite();
-            }
+            $this->afterWrite();
+
             return $model->fresh($this->getAllowedRelations());
         } catch (\Throwable $ex) {
-            throw new DomainException('Failed to update resource: ' . $ex->getMessage(), 0, $ex);
+            throw new DomainException('Failed to update resource: '.$ex->getMessage(), 0, $ex);
         }
     }
 
@@ -57,9 +56,7 @@ trait EloquentCrud
 
         if ($result) {
             $this->invalidateModelCaches($model->getKey());
-            if (method_exists($this, 'afterWrite')) {
-                $this->afterWrite();
-            }
+            $this->afterWrite();
         }
 
         return $result;
@@ -94,9 +91,10 @@ trait EloquentCrud
             $value = $id->get('value');
             if ($value === null) {
                 throw new \InvalidArgumentException(
-                    sprintf('AbstractUuid of class %s returned null for key "value".', get_class($id))
+                    sprintf('AbstractUuid of class %s returned null for key "value".', $id::class)
                 );
             }
+
             return (string) $value;
         }
 
@@ -104,4 +102,10 @@ trait EloquentCrud
     }
 
     abstract protected function modelClass(): string;
+
+    abstract protected function afterWrite(): void;
+
+    abstract protected function cache(): RepositoryCache;
+
+    abstract protected function getAllowedRelations(): array;
 }
