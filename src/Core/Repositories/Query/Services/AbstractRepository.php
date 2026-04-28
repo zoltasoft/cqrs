@@ -253,22 +253,43 @@ abstract class AbstractRepository
     public function paginate(AbstractQueryOptions|RepositoryQuery|array|null $opts = null): mixed
     {
         $repositoryQuery = $this->repositoryQuery($opts);
-        $query = $this->buildQuery($repositoryQuery);
+        $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
         $limit = $repositoryQuery->limit() ?? 25;
-        $page = $repositoryQuery->page() ?? 1;
+        $page  = $repositoryQuery->page() ?? 1;
 
-        return $this->fetchPaginated($query, $page, $limit);
+        $cacheKey = [
+            'filters' => $repositoryQuery->filters(),
+            'include' => $repositoryQuery->includes(),
+            'sort'    => $repositoryQuery->sort(),
+            'fields'  => $repositoryQuery->fields(),
+            'limit'   => $limit,
+            'page'    => $page,
+        ];
+
+        if (! $this->enableReadCaching) {
+            return $this->fetchPaginated($query, $page, $limit);
+        }
+
+        return $this->cache()->remember(
+            'paginate',
+            $cacheKey,
+            fn(): mixed => $this->fetchPaginated($query, $page, $limit),
+            $this->cacheTtlSeconds()
+        );
     }
 
     /**
+     * Streams results directly from the database.
+     * Deliberately not cached — cursors are lazy and incompatible with cache storage.
+     *
      * @param  array<string,mixed>|RepositoryQuery|AbstractQueryOptions|null  $opts
      * @return iterable<mixed>
      */
     public function cursor(AbstractQueryOptions|RepositoryQuery|array|null $opts = null): iterable
     {
         $repositoryQuery = $this->repositoryQuery($opts);
-        $query = $this->buildQuery($repositoryQuery);
+        $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
         return $this->fetchCursor($query);
     }
@@ -281,7 +302,20 @@ abstract class AbstractRepository
         $repositoryQuery = $this->repositoryQuery($opts);
         $query = $this->buildQuery($repositoryQuery);
 
-        return $this->fetchCount($query);
+        $cacheKey = [
+            'filters' => $repositoryQuery->filters(),
+        ];
+
+        if (! $this->enableReadCaching) {
+            return $this->fetchCount($query);
+        }
+
+        return $this->cache()->remember(
+            'count',
+            $cacheKey,
+            fn(): int => $this->fetchCount($query),
+            $this->cacheTtlSeconds()
+        );
     }
 
     /**

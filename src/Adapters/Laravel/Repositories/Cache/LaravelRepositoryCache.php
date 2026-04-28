@@ -121,6 +121,9 @@ final class LaravelRepositoryCache implements RepositoryCache
 
     private function detectType(mixed $value): string
     {
+        if ($value instanceof \Zolta\Domain\ValueObjects\Pagination) {
+            return 'pagination';
+        }
         if ($value instanceof EloquentCollection) {
             return 'eloquent_collection';
         }
@@ -141,6 +144,19 @@ final class LaravelRepositoryCache implements RepositoryCache
 
     private function encode(mixed $value): mixed
     {
+        if ($value instanceof \Zolta\Domain\ValueObjects\Pagination) {
+            return [
+                'items'       => array_map(
+                    fn($item) => $item instanceof Model ? $this->encodeModel($item) : $item,
+                    $value->items
+                ),
+                'total'       => $value->total,
+                'perPage'     => $value->perPage,
+                'currentPage' => $value->currentPage,
+                'lastPage'    => $value->lastPage,
+            ];
+        }
+
         if ($value instanceof Model) {
             return $this->encodeModel($value);
         }
@@ -192,6 +208,18 @@ final class LaravelRepositoryCache implements RepositoryCache
                     ? $this->decodeModel($row)
                     : $row,
                 $data
+            ),
+            'pagination' => new \Zolta\Domain\ValueObjects\Pagination(
+                items: array_map(
+                    fn($row) => is_array($row) && isset($row['__class'])
+                        ? $this->decodeModel($row)
+                        : $row,
+                    $data['items']
+                ),
+                total: $data['total'],
+                perPage: $data['perPage'],
+                currentPage: $data['currentPage'],
+                lastPage: $data['lastPage'],
             ),
 
             default => $data,

@@ -89,10 +89,6 @@ abstract class EloquentBaseRepository extends AbstractRepository
         $with = $this->resolveIncludes($repositoryQuery);
         $this->applyIncludes($builder, $with);
 
-        $this->applyFilters($builder, $repositoryQuery, $this->queryDefinition());
-        $this->applyFieldSelection($builder, $repositoryQuery->fields());
-        $this->applyLimit($builder, $repositoryQuery->limit());
-
         return $builder;
     }
 

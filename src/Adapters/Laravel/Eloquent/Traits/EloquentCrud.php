@@ -85,12 +85,22 @@ trait EloquentCrud
      */
     protected function cacheNamespacesForInvalidation(): array
     {
-        return ['first', 'all'];
+        return ['first', 'all', 'paginate', 'count'];
     }
 
     protected function resolveId(AbstractUuid|string|int $id): string|int
     {
-        return $id instanceof AbstractUuid ? $id->get('value') : $id;
+        if ($id instanceof AbstractUuid) {
+            $value = $id->get('value');
+            if ($value === null) {
+                throw new \InvalidArgumentException(
+                    sprintf('AbstractUuid of class %s returned null for key "value".', get_class($id))
+                );
+            }
+            return (string) $value;
+        }
+
+        return $id;
     }
 
     abstract protected function modelClass(): string;
