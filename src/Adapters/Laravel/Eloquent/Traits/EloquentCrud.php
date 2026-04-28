@@ -21,10 +21,12 @@ trait EloquentCrud
         try {
             $model->save();
             $this->invalidateModelCaches($model->getKey());
-
+            if (method_exists($this, 'afterWrite')) {
+                $this->afterWrite();
+            }
             return $model->fresh($this->getAllowedRelations());
         } catch (\Throwable $ex) {
-            throw new DomainException('Failed to create resource: '.$ex->getMessage(), 0, $ex);
+            throw new DomainException('Failed to create resource: ' . $ex->getMessage(), 0, $ex);
         }
     }
 
@@ -40,10 +42,12 @@ trait EloquentCrud
 
             $model->save();
             $this->invalidateModelCaches($model->getKey());
-
+            if (method_exists($this, 'afterWrite')) {
+                $this->afterWrite();
+            }
             return $model->fresh($this->getAllowedRelations());
         } catch (\Throwable $ex) {
-            throw new DomainException('Failed to update resource: '.$ex->getMessage(), 0, $ex);
+            throw new DomainException('Failed to update resource: ' . $ex->getMessage(), 0, $ex);
         }
     }
 
@@ -53,6 +57,9 @@ trait EloquentCrud
 
         if ($result) {
             $this->invalidateModelCaches($model->getKey());
+            if (method_exists($this, 'afterWrite')) {
+                $this->afterWrite();
+            }
         }
 
         return $result;

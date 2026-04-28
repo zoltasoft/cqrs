@@ -7,6 +7,9 @@ namespace Zolta\Cqrs\Laravel\Repositories\Cache;
 use Illuminate\Cache\RedisStore;
 use Illuminate\Cache\TaggableStore as CacheTaggableStore;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Zolta\Cqrs\Repositories\Cache\CacheKeyGenerator;
 use Zolta\Cqrs\Repositories\Cache\RepositoryCache;
@@ -16,6 +19,8 @@ use Zolta\Cqrs\Repositories\Cache\RepositoryCache;
  */
 final class LaravelRepositoryCache implements RepositoryCache
 {
+    private const ENVELOPE_VERSION = 1;
+
     private ?CacheRepository $cacheRepository = null;
 
     public function __construct(
@@ -34,13 +39,19 @@ final class LaravelRepositoryCache implements RepositoryCache
         $key = $this->key($namespace, $parameters);
         $ttl = $ttlSeconds ?? $this->defaultTtlSeconds;
 
-        /** @var \Closure():TCacheValue $closure */
-        $closure = $callback instanceof \Closure ? $callback : \Closure::fromCallable($callback);
+        $cached = $this->store()->get($key);
 
-        /** @var TCacheValue $result */
-        $result = $this->store()->remember($key, $ttl, $closure);
+        if ($cached !== null) {
+            /** @var TCacheValue */
+            return $this->unwrap($cached);
+        }
 
-        return $result;
+        /** @var TCacheValue $value */
+        $value = $callback();
+
+        $this->store()->put($key, $this->wrap($value), $ttl);
+
+        return $value;
     }
 
     public function forget(string $namespace, array $parameters): void
@@ -53,7 +64,6 @@ final class LaravelRepositoryCache implements RepositoryCache
     {
         if ($this->canUseTags()) {
             Cache::tags([$this->tag])->flush();
-
             return;
         }
 
@@ -68,7 +78,6 @@ final class LaravelRepositoryCache implements RepositoryCache
     {
         if ($this->canUseTags()) {
             Cache::tags([$this->tag])->flush();
-
             return;
         }
 
@@ -79,13 +88,205 @@ final class LaravelRepositoryCache implements RepositoryCache
         $this->store()->getStore()->flush();
     }
 
+    // -------------------------------------------------------------------------
+    // Serialization envelope
+    // -------------------------------------------------------------------------
+
+    /**
+     * Wrap a value into a safe plain-array envelope before storing.
+     * Eloquent models are encoded to arrays so PHP's unserialize() never
+     * needs to resolve a class that may not be autoloaded yet.
+     */
+    private function wrap(mixed $value): array
+    {
+        return [
+            '_v'    => self::ENVELOPE_VERSION,
+            '_type' => $this->detectType($value),
+            '_data' => $this->encode($value),
+        ];
+    }
+
+    /**
+     * Reconstruct the original value from a stored envelope.
+     * Falls back gracefully for any value cached before this change was deployed.
+     */
+    private function unwrap(mixed $cached): mixed
+    {
+        if (! is_array($cached) || ! isset($cached['_v'], $cached['_type'], $cached['_data'])) {
+            return $cached;
+        }
+
+        return $this->decode($cached['_type'], $cached['_data']);
+    }
+
+    private function detectType(mixed $value): string
+    {
+        if ($value instanceof EloquentCollection) {
+            return 'eloquent_collection';
+        }
+        if ($value instanceof Collection) {
+            return 'collection';
+        }
+        if ($value instanceof Model) {
+            return 'model';
+        }
+        if (is_array($value)) {
+            return 'array';
+        }
+        if (is_iterable($value)) {
+            return 'iterable';
+        }
+        return 'scalar';
+    }
+
+    private function encode(mixed $value): mixed
+    {
+        if ($value instanceof Model) {
+            return $this->encodeModel($value);
+        }
+
+        if ($value instanceof Collection) {
+            return $value->map(
+                fn($item) => $item instanceof Model ? $this->encodeModel($item) : $item
+            )->all();
+        }
+
+        if (is_array($value)) {
+            return array_map(
+                fn($item) => $item instanceof Model ? $this->encodeModel($item) : $item,
+                $value
+            );
+        }
+
+        if (is_iterable($value)) {
+            $result = [];
+            foreach ($value as $k => $item) {
+                $result[$k] = $item instanceof Model ? $this->encodeModel($item) : $item;
+            }
+            return $result;
+        }
+
+        return $value;
+    }
+
+    private function decode(string $type, mixed $data): mixed
+    {
+        return match ($type) {
+            'model' => $this->decodeModel($data),
+
+            'eloquent_collection' => EloquentCollection::make(
+                array_map(fn($row) => $this->decodeModel($row), $data)
+            ),
+
+            'collection' => Collection::make(
+                array_map(
+                    fn($row) => is_array($row) && isset($row['__class'])
+                        ? $this->decodeModel($row)
+                        : $row,
+                    $data
+                )
+            ),
+
+            'array', 'iterable' => array_map(
+                fn($row) => is_array($row) && isset($row['__class'])
+                    ? $this->decodeModel($row)
+                    : $row,
+                $data
+            ),
+
+            default => $data,
+        };
+    }
+
+    // -------------------------------------------------------------------------
+    // Model encode / decode
+    // -------------------------------------------------------------------------
+
+    /**
+     * Reduce an Eloquent model to a plain array, encoding relations recursively.
+     *
+     * @return array{__class: class-string<Model>, attributes: array<string,mixed>, relations: array<string,mixed>, exists: bool}
+     */
+    private function encodeModel(Model $model): array
+    {
+        $relations = [];
+
+        foreach ($model->getRelations() as $name => $relation) {
+            if ($relation instanceof Model) {
+                $relations[$name] = $this->encodeModel($relation);
+            } elseif ($relation instanceof Collection) {
+                $relations[$name] = $relation->map(
+                    fn($r) => $r instanceof Model ? $this->encodeModel($r) : $r
+                )->all();
+            } else {
+                // null or pivot — store as-is
+                $relations[$name] = $relation;
+            }
+        }
+
+        return [
+            '__class'    => get_class($model),
+            'attributes' => $model->getAttributes(),
+            'relations'  => $relations,
+            'exists'     => $model->exists,
+        ];
+    }
+
+    /**
+     * Reconstruct an Eloquent model from its encoded array.
+     *
+     * Uses `new $class` to trigger the autoloader correctly at retrieval time,
+     * and `setRawAttributes(..., true)` so the model's "original" state matches
+     * its attributes and it doesn't appear dirty.
+     *
+     * @param array{__class: class-string<Model>, attributes: array<string,mixed>, relations: array<string,mixed>, exists: bool} $data
+     */
+    private function decodeModel(array $data): Model
+    {
+        /** @var class-string<Model> $class */
+        $class = $data['__class'];
+
+        /** @var Model $model */
+        $model = new $class;
+        $model->setRawAttributes($data['attributes'], true);
+        $model->exists = $data['exists'] ?? true;
+
+        foreach ($data['relations'] as $name => $relData) {
+            if ($relData === null) {
+                $model->setRelation($name, null);
+                continue;
+            }
+
+            if (is_array($relData) && isset($relData['__class'])) {
+                $model->setRelation($name, $this->decodeModel($relData));
+                continue;
+            }
+
+            if (is_array($relData)) {
+                $items = array_map(
+                    fn($r) => is_array($r) && isset($r['__class']) ? $this->decodeModel($r) : $r,
+                    $relData
+                );
+                $model->setRelation($name, $model->newCollection($items));
+                continue;
+            }
+
+            $model->setRelation($name, $relData);
+        }
+
+        return $model;
+    }
+
+    // -------------------------------------------------------------------------
+    // Internals
+    // -------------------------------------------------------------------------
+
     /**
      * @param  array<string, mixed>  $parameters
      */
     private function key(string $namespace, array $parameters): string
     {
         $namespaceKey = $this->namespaceKey($namespace);
-
         return $this->cacheKeyGenerator->generate($namespaceKey, $parameters);
     }
 
@@ -120,9 +321,8 @@ final class LaravelRepositoryCache implements RepositoryCache
         }
 
         $connection = $store->connection();
-        $prefix = $store->getPrefix();
-
-        $pattern = sprintf('%s%s:%s*', $prefix, $this->keyGeneratorPrefix(), $namespaceKey);
+        $prefix     = $store->getPrefix();
+        $pattern    = sprintf('%s%s:%s*', $prefix, $this->keyGeneratorPrefix(), $namespaceKey);
 
         $iterator = null;
         while (is_array($keys = $connection->scan($iterator, $pattern)) && $keys !== []) {

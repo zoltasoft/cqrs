@@ -31,12 +31,16 @@ abstract class AbstractRepository
 
     protected string $defaultOperator = 'eq';
 
-    protected int $cacheTtlMinutes = 5;
 
     /**
-     * Override in subclasses for sub-minute precision (takes precedence over $cacheTtlMinutes).
+     * Cache TTL in seconds (default 300s = 5min).
      */
-    protected int $cacheTtlSeconds = 0;
+    protected int $cacheTtlSeconds = 300;
+
+    /**
+     * Cache tag/namespace for this repository (override in concrete repos).
+     */
+    protected string $cacheTag = 'repository';
 
     protected bool $enableReadCaching = false;
 
@@ -63,9 +67,51 @@ abstract class AbstractRepository
     ];
 
     /**
-     * Build a RepositoryQuery from various sources.
+     * Pipeline orchestration: applies filters, includes, sorting, fields, limit.
+     * Adapters should call this after buildQuery.
      */
+    protected function finalizeQuery(mixed $query, RepositoryQuery $rq): mixed
+    {
+        $definition = $this->queryDefinition();
+        $this->applyFilters($query, $rq, $definition);
+        $this->applyIncludes($query, $rq->includes());
+        $this->applySorting($query, $rq->sort(), $definition);
+        $this->applyFieldSelection($query, $rq->fields());
+        $this->applyLimit($query, $rq->limit());
+        return $query;
+    }
+
     /**
+     * Write-invalidation hook: bust all cache for this repository.
+     */
+    protected function bustCache(): void
+    {
+        if (! $this->enableReadCaching) {
+            return;
+        }
+        $this->cache()->flushAll();
+    }
+
+    /**
+     * Unified query creation helper.
+     * @param array|RepositoryQuery|AbstractQueryOptions|null $source
+     */
+    protected function query(array|RepositoryQuery|AbstractQueryOptions|null $source = null): RepositoryQuery
+    {
+        return $this->repositoryQuery($source);
+    }
+
+    // /**
+    //  * Query factory short helper.
+    //  */
+    // private function rq(array $opts = []): RepositoryQuery
+    // {
+    //     return $this->query($opts);
+    // }
+
+    /**
+     * Build a RepositoryQuery from various sources.
+     *
      * @param  array<string,mixed>|RepositoryQuery|AbstractQueryOptions|null  $source
      */
     public function repositoryQuery(AbstractQueryOptions|RepositoryQuery|array|null $source = null): RepositoryQuery
@@ -110,7 +156,16 @@ abstract class AbstractRepository
     public function all(AbstractQueryOptions|RepositoryQuery|array|null $opts = null): iterable
     {
         $repositoryQuery = $this->repositoryQuery($opts);
-        $query = $this->buildQuery($repositoryQuery);
+        $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
+
+        $cacheKey = [
+            'filters' => $repositoryQuery->filters(),
+            'include' => $repositoryQuery->includes(),
+            'sort' => $repositoryQuery->sort(),
+            'fields' => $repositoryQuery->fields(),
+            'limit' => $repositoryQuery->limit(),
+            'page' => $repositoryQuery->page(),
+        ];
 
         if (! $this->enableReadCaching) {
             return $this->fetchAll($query);
@@ -118,12 +173,8 @@ abstract class AbstractRepository
 
         return $this->cache()->remember(
             'all',
-            [
-                'filters' => $repositoryQuery->filters(),
-                'include' => $repositoryQuery->includes(),
-                'sort' => $repositoryQuery->sort(),
-            ],
-            fn (): iterable => $this->fetchAll($query),
+            $cacheKey,
+            fn(): iterable => $this->fetchAll($query),
             $this->cacheTtlSeconds()
         );
     }
@@ -134,7 +185,16 @@ abstract class AbstractRepository
     public function first(AbstractQueryOptions|RepositoryQuery|array|null $opts = null): mixed
     {
         $repositoryQuery = $this->repositoryQuery($opts);
-        $query = $this->buildQuery($repositoryQuery);
+        $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
+
+        $cacheKey = [
+            'filters' => $repositoryQuery->filters(),
+            'include' => $repositoryQuery->includes(),
+            'sort' => $repositoryQuery->sort(),
+            'fields' => $repositoryQuery->fields(),
+            'limit' => $repositoryQuery->limit(),
+            'page' => $repositoryQuery->page(),
+        ];
 
         if (! $this->enableReadCaching) {
             return $this->fetchFirst($query);
@@ -142,12 +202,8 @@ abstract class AbstractRepository
 
         return $this->cache()->remember(
             'first',
-            [
-                'filters' => $repositoryQuery->filters(),
-                'include' => $repositoryQuery->includes(),
-                'sort' => $repositoryQuery->sort(),
-            ],
-            fn (): mixed => $this->fetchFirst($query),
+            $cacheKey,
+            fn(): mixed => $this->fetchFirst($query),
             $this->cacheTtlSeconds()
         );
     }
@@ -157,8 +213,14 @@ abstract class AbstractRepository
      */
     public function show(string|int $id, array $include = []): mixed
     {
-        $with = array_values(array_intersect($include, $this->getAllowedRelations()));
+        $definition = $this->queryDefinition();
+        $with = array_values(array_intersect($include, $definition->allowedIncludes()));
         sort($with);
+
+        $cacheKey = [
+            'id' => (string) $id,
+            'includes' => $with,
+        ];
 
         if (! $this->enableReadCaching) {
             return $this->fetchById($id, $with);
@@ -166,18 +228,24 @@ abstract class AbstractRepository
 
         return $this->cache()->remember(
             'entity',
-            [
-                'id' => (string) $id,
-                'includes' => $with,
-            ],
-            fn (): mixed => $this->fetchById($id, $with),
+            $cacheKey,
+            fn(): mixed => $this->fetchById($id, $with),
             $this->cacheTtlSeconds()
         );
     }
 
     /**
-     * @return mixed pagination payload (framework-specific)
+     * Write contract: save an aggregate (create or update).
+     * Must be implemented by adapters and call bustCache after write.
      */
+    // abstract public function save(object $aggregate): void;
+
+    /**
+     * Write contract: delete by id.
+     * Must be implemented by adapters and call bustCache after write.
+     */
+    // abstract public function delete(string|int $id): void;
+
     /**
      * @param  array<string,mixed>|RepositoryQuery|AbstractQueryOptions|null  $opts
      * @return mixed pagination payload (framework-specific)
@@ -226,11 +294,7 @@ abstract class AbstractRepository
 
     protected function cacheTtlSeconds(): int
     {
-        if ($this->cacheTtlSeconds > 0) {
-            return $this->cacheTtlSeconds;
-        }
-
-        return max(1, $this->cacheTtlMinutes * 60);
+        return $this->cacheTtlSeconds > 0 ? $this->cacheTtlSeconds : 300;
     }
 
     // ---- Abstract hooks implemented by framework adapters ----
@@ -252,28 +316,28 @@ abstract class AbstractRepository
 
     /**
      * Apply includes/relations.
-     */
-    /**
+     *
      * @param  array<int,string>  $includes
      */
     abstract protected function applyIncludes(mixed $query, array $includes): void;
 
     /**
      * Apply sorting.
-     */
-    /**
+     *
      * @param  array<int,string>  $sort
      */
     abstract protected function applySorting(mixed $query, array $sort, QueryDefinition $queryDefinition): void;
 
     /**
      * Apply field selection.
-     */
-    /**
+     *
      * @param  array<int,string>  $fields
      */
     abstract protected function applyFieldSelection(mixed $query, array $fields): void;
 
+    /**
+     * Apply a limit/offset if provided.
+     */
     /**
      * Apply a limit/offset if provided.
      */

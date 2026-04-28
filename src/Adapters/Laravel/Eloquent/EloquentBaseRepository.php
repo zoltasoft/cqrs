@@ -36,19 +36,29 @@ abstract class EloquentBaseRepository extends AbstractRepository
 
     private ?CacheKeyGenerator $cacheKeyGenerator = null;
 
+
     protected function cache(): RepositoryCache
     {
         if (! isset($this->repositoryCache)) {
             $this->repositoryCache = new LaravelRepositoryCache(
                 cacheKeyGenerator: $this->cacheKeyGenerator(),
-                tag: $this->cacheTag(),
+                tag: $this->cacheTag,
                 defaultTtlSeconds: $this->cacheTtlSeconds(),
                 useTaggedCache: $this->useTaggedCache,
             );
         }
-
         return $this->repositoryCache;
     }
+
+    /**
+     * Post-write hook: bust cache after writes.
+     */
+    protected function afterWrite(): void
+    {
+        $this->bustCache();
+    }
+
+    // Example: ensure to call afterWrite() in create/update/delete methods in EloquentCrud trait or override if needed.
 
     protected function cacheKeyGenerator(): CacheKeyGenerator
     {
@@ -423,6 +433,7 @@ abstract class EloquentBaseRepository extends AbstractRepository
             $builder->limit($limit);
         }
     }
+
 
     /**
      * @return iterable<TModel>

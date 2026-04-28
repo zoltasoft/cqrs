@@ -28,3 +28,5 @@ yarn-error.log*
 # If CI generates `stubs/generated/` then ignore it; otherwise keep stubs tracked.
 stubs/generated/
 
+internal
+
