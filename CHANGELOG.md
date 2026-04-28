@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.0.1] - 2026-04-27
+### Fixed
+- Repository cache invalidation bug
+- Memory leak in query iterator
+- Enhanced query builder consistency
 
 ---
