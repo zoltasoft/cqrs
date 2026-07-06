@@ -9,6 +9,8 @@ use PHPUnit\Framework\TestCase;
 use Zolta\Cqrs\Commands\Contracts\CommandInterface;
 use Zolta\Cqrs\Hydration\DefaultMessageHydrator;
 use Zolta\Cqrs\Queries\Contracts\QueryInterface;
+use Zolta\Domain\ValueObjects\ValueObject;
+use Zolta\Domain\ValueObjects\VOConstructionContext;
 
 // ── Test DTOs ────────────────────────────────────────────────────────────
 
@@ -44,6 +46,37 @@ class GenericDto
 }
 
 class NoConstructorDto {}
+
+class TestArrayValueObject extends ValueObject
+{
+    /**
+     * @param  list<string>  $area
+     */
+    public function __construct(
+        public string $displayName,
+        public array $area = [],
+        public ?VOConstructionContext $context = null,
+    ) {
+        parent::__construct();
+    }
+}
+
+class TestNestedArrayValueObject extends ValueObject
+{
+    public function __construct(
+        public TestArrayValueObject $location,
+        public ?VOConstructionContext $context = null,
+    ) {
+        parent::__construct();
+    }
+}
+
+class TestCommandWithArrayValueObject implements CommandInterface
+{
+    public function __construct(
+        public readonly TestArrayValueObject $location,
+    ) {}
+}
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
@@ -166,6 +199,52 @@ final class DefaultMessageHydratorTest extends TestCase
         $result = $this->hydrator->hydrate(NoConstructorDto::class, []);
 
         $this->assertInstanceOf(NoConstructorDto::class, $result);
+    }
+
+    public function test_hydrate_value_object_preserves_array_constructor_arguments(): void
+    {
+        /** @var TestArrayValueObject $result */
+        $result = $this->hydrator->hydrate(TestArrayValueObject::class, [
+            'displayName' => 'Westmount, Montreal',
+            'area' => ['Canada', 'Quebec', 'Montreal', 'Westmount'],
+        ]);
+
+        $this->assertSame(
+            ['Canada', 'Quebec', 'Montreal', 'Westmount'],
+            $result->area,
+        );
+    }
+
+    public function test_hydrate_command_with_value_object_preserves_array_constructor_arguments(): void
+    {
+        /** @var TestCommandWithArrayValueObject $result */
+        $result = $this->hydrator->hydrate(TestCommandWithArrayValueObject::class, [
+            'location' => [
+                'displayName' => 'Westmount, Montreal',
+                'area' => ['Canada', 'Quebec', 'Montreal', 'Westmount'],
+            ],
+        ]);
+
+        $this->assertSame(
+            ['Canada', 'Quebec', 'Montreal', 'Westmount'],
+            $result->location->area,
+        );
+    }
+
+    public function test_hydrate_nested_value_object_preserves_array_constructor_arguments(): void
+    {
+        /** @var TestNestedArrayValueObject $result */
+        $result = $this->hydrator->hydrate(TestNestedArrayValueObject::class, [
+            'location' => [
+                'displayName' => 'Westmount, Montreal',
+                'area' => ['Canada', 'Quebec', 'Montreal', 'Westmount'],
+            ],
+        ]);
+
+        $this->assertSame(
+            ['Canada', 'Quebec', 'Montreal', 'Westmount'],
+            $result->location->area,
+        );
     }
 
     // ── Security: type boundary tests ───────────────────────────────────

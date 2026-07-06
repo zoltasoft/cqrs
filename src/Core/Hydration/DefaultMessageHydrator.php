@@ -368,6 +368,14 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
 
                 // If array: common pattern ['value'=>...]
                 if (is_array($candidate)) {
+                    if ($this->isBuiltinArrayType($type)) {
+                        if (array_key_exists('value', $candidate)) {
+                            return $candidate['value'];
+                        }
+
+                        return $candidate;
+                    }
+
                     if (array_key_exists('value', $candidate)) {
                         return $this->castScalarToBuiltin($candidate['value'], $typeName);
                     }
@@ -565,7 +573,7 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
 
                 if (array_key_exists('value', $rawArray)) {
                     $raw = $rawArray['value'];
-                } else {
+                } elseif (! $this->isBuiltinArrayType($type)) {
                     $firstNumKey = $this->firstNumericKey($rawArray);
                     if ($firstNumKey !== null) {
                         $raw = $rawArray[$firstNumKey];
@@ -622,6 +630,10 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         $reflectionClass = $this->cachedReflection($voSubClass);
         $voCtor = $reflectionClass->getConstructor();
         $voCtorParams = $voCtor ? $voCtor->getParameters() : [];
+        $voCtorParamsByName = [];
+        foreach ($voCtorParams as $voCtorParam) {
+            $voCtorParamsByName[$voCtorParam->getName()] = $voCtorParam;
+        }
 
         // property names for validation
         $voPropNames = [];
@@ -658,10 +670,17 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
                         $options[$propName] = $propSpec['runtimeOption'];
                     }
                 } else {
-                    // numeric-shorthand inside property
-                    $firstNumKey = $this->firstNumericKey($propSpec);
-                    if ($firstNumKey !== null) {
-                        $voValues[$propName] = $propSpec[$firstNumKey];
+                    $targetParam = $voCtorParamsByName[$propName] ?? null;
+                    $targetType = $targetParam?->getType();
+
+                    if ($targetType instanceof ReflectionNamedType && $this->isBuiltinArrayType($targetType)) {
+                        $voValues[$propName] = $propSpec;
+                    } else {
+                        // numeric-shorthand inside property
+                        $firstNumKey = $this->firstNumericKey($propSpec);
+                        if ($firstNumKey !== null) {
+                            $voValues[$propName] = $propSpec[$firstNumKey];
+                        }
                     }
 
                     if (isset($propSpec['runtimePreprocessor'])) {
@@ -835,6 +854,11 @@ final class DefaultMessageHydrator implements MessageHydratorInterface
         return $reflectionParameter->getName() === 'context'
             && $type instanceof ReflectionNamedType
             && $type->getName() === VOConstructionContext::class;
+    }
+
+    private function isBuiltinArrayType(ReflectionNamedType $reflectionNamedType): bool
+    {
+        return $reflectionNamedType->isBuiltin() && $reflectionNamedType->getName() === 'array';
     }
 
     // ---------------------------------------------------------------------
