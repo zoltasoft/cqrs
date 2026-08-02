@@ -13,7 +13,10 @@ use Zolta\Cqrs\Laravel\Repositories\Cache\LaravelRepositoryCache;
 use Zolta\Cqrs\Repositories\Cache\CacheKeyGenerator;
 use Zolta\Cqrs\Repositories\Cache\HashedCacheKeyGenerator;
 use Zolta\Cqrs\Repositories\Cache\RepositoryCache;
+use Zolta\Cqrs\Repositories\Query\Exceptions\InvalidRepositoryConstraintException;
+use Zolta\Cqrs\Repositories\Query\Exceptions\InvalidRepositoryFilterException;
 use Zolta\Cqrs\Repositories\Query\Interfaces\QueryDefinition;
+use Zolta\Cqrs\Repositories\Query\RepositoryConstraint;
 use Zolta\Cqrs\Repositories\Query\RepositoryQuery;
 use Zolta\Cqrs\Repositories\Query\Services\AbstractRepository;
 use Zolta\Domain\ValueObjects\Pagination;
@@ -165,15 +168,54 @@ abstract class EloquentBaseRepository extends AbstractRepository
             return;
         }
 
+        $constraintFields = array_map(
+            static fn (RepositoryConstraint $repositoryConstraint): string => $repositoryConstraint->field(),
+            $repositoryQuery->constraints(),
+        );
+
         foreach ($repositoryQuery->filters() as $key => $value) {
             if (in_array($key, ['limit', 'page', 'include', 'sort', 'fields', 'context'], true)) {
                 continue;
             }
 
+            $baseField = preg_replace('/\[.+\]$/', '', (string) $key) ?: (string) $key;
+            if (in_array($baseField, $constraintFields, true)) {
+                throw new InvalidRepositoryFilterException("Filter [{$key}] conflicts with a mandatory constraint.");
+            }
+
             $this->applyFilter($builder, (string) $key, $value, $queryDefinition);
         }
+    }
 
-        $this->applySorting($builder, $repositoryQuery->sort(), $queryDefinition);
+    /**
+     * @param  Builder<TModel>  $builder
+     */
+    protected function applyConstraints(mixed $builder, RepositoryQuery $repositoryQuery, QueryDefinition $queryDefinition): void
+    {
+        if ($repositoryQuery->constraints() === []) {
+            return;
+        }
+
+        if (! $builder instanceof Builder) {
+            throw new InvalidRepositoryConstraintException('Eloquent repository constraints require an Eloquent query builder.');
+        }
+
+        foreach ($repositoryQuery->constraints() as $constraint) {
+            $field = $constraint->field();
+            if (! $queryDefinition->allowsConstraint($field)) {
+                throw new InvalidRepositoryConstraintException("Constraint field [{$field}] is not allowed by this repository.");
+            }
+
+            match ($constraint->operator()) {
+                'eq' => $builder->where($field, $constraint->value()),
+                'in' => $builder->whereIn($field, $constraint->value()),
+                'null' => $builder->whereNull($field),
+                'not_null' => $builder->whereNotNull($field),
+                default => throw new InvalidRepositoryConstraintException(
+                    "Constraint operator [{$constraint->operator()}] is not supported."
+                ),
+            };
+        }
     }
 
     /**
@@ -189,6 +231,9 @@ abstract class EloquentBaseRepository extends AbstractRepository
             interface_exists(FilterInterface::class) &&
             $value instanceof FilterInterface
         ) {
+            if (! $queryDefinition->allowsFilter($key)) {
+                throw new InvalidRepositoryFilterException("Filter [{$key}] is not allowed by this repository.");
+            }
             $value->apply($builder, $key);
 
             return;
@@ -209,16 +254,20 @@ abstract class EloquentBaseRepository extends AbstractRepository
         if (preg_match('/^(.+)\[(.+)\]$/', $key, $matches)) {
             $field = (string) $matches[1];
             $operator = (string) $matches[2];
-            if ($queryDefinition->allowsFilter($field) && isset($queryDefinition->operators()[$operator])) {
-                $this->applyOperatorFilter($builder, $field, $operator, $value, $queryDefinition);
+            if (! $queryDefinition->allowsFilter($field) || ! isset($queryDefinition->operators()[$operator])) {
+                throw new InvalidRepositoryFilterException("Filter [{$key}] is not allowed by this repository.");
             }
+
+            $this->applyOperatorFilter($builder, $field, $operator, $value, $queryDefinition);
 
             return;
         }
 
-        if ($queryDefinition->allowsFilter($key)) {
-            $this->applyStandardFilter($builder, $key, $value);
+        if (! $queryDefinition->allowsFilter($key)) {
+            throw new InvalidRepositoryFilterException("Filter [{$key}] is not allowed by this repository.");
         }
+
+        $this->applyStandardFilter($builder, $key, $value);
     }
 
     /**
@@ -239,9 +288,11 @@ abstract class EloquentBaseRepository extends AbstractRepository
         $operator = (string) ($filterConfig['operator'] ?? $queryDefinition->defaultOperator());
         $value = $filterConfig['value'] ?? $filterConfig;
 
-        if ($queryDefinition->allowsFilter($key) && isset($queryDefinition->operators()[$operator])) {
-            $this->applyOperatorFilter($builder, $key, $operator, $value, $queryDefinition);
+        if (! $queryDefinition->allowsFilter($key) || ! isset($queryDefinition->operators()[$operator])) {
+            throw new InvalidRepositoryFilterException("Filter [{$key}] is not allowed by this repository.");
         }
+
+        $this->applyOperatorFilter($builder, $key, $operator, $value, $queryDefinition);
     }
 
     /**
@@ -256,16 +307,36 @@ abstract class EloquentBaseRepository extends AbstractRepository
         [$relation, $field] = explode('.', $key, 2);
 
         if (! $queryDefinition->allowsRelation($relation)) {
-            return;
+            throw new InvalidRepositoryFilterException("Relation filter [{$key}] is not allowed by this repository.");
         }
 
         $allowedFields = $queryDefinition->allowedRelationFields($relation);
         if ($allowedFields !== null && ! in_array($field, $allowedFields, true)) {
-            return;
+            throw new InvalidRepositoryFilterException("Relation filter [{$key}] is not allowed by this repository.");
         }
 
         $builder->whereHas($relation, function (Builder $builder) use ($field, $value, $queryDefinition): void {
-            $this->applyFilter($builder, $field, $value, $queryDefinition);
+            if (preg_match('/^(.+)\[(.+)\]$/', $field, $matches)) {
+                $operator = (string) $matches[2];
+                if (! isset($queryDefinition->operators()[$operator])) {
+                    throw new InvalidRepositoryFilterException("Relation filter operator [{$operator}] is not supported.");
+                }
+                $this->applyOperatorFilter($builder, (string) $matches[1], $operator, $value, $queryDefinition);
+
+                return;
+            }
+
+            if (is_array($value) && $this->isFilterArray($value)) {
+                $operator = (string) ($value['operator'] ?? $queryDefinition->defaultOperator());
+                if (! isset($queryDefinition->operators()[$operator])) {
+                    throw new InvalidRepositoryFilterException("Relation filter operator [{$operator}] is not supported.");
+                }
+                $this->applyOperatorFilter($builder, $field, $operator, $value['value'] ?? $value, $queryDefinition);
+
+                return;
+            }
+
+            $this->applyStandardFilter($builder, $field, $value);
         });
     }
 
@@ -290,9 +361,10 @@ abstract class EloquentBaseRepository extends AbstractRepository
                 if (is_array($value)) {
                     $method = $operator === 'in' ? 'whereIn' : 'whereNotIn';
                     $builder->{$method}($field, $value);
-                }
-                break;
 
+                    break;
+                }
+                throw new InvalidRepositoryFilterException("Filter [{$field}] requires an array-compatible value.");
             case 'null':
                 $builder->whereNull($field);
                 break;
@@ -307,9 +379,10 @@ abstract class EloquentBaseRepository extends AbstractRepository
                 }
                 if (is_array($value) && count($value) === 2) {
                     $builder->whereBetween($field, $value);
-                }
-                break;
 
+                    break;
+                }
+                throw new InvalidRepositoryFilterException("Filter [{$field}] requires exactly two values.");
             case 'like':
             case 'not_like':
                 $value = str_replace('*', '%', (string) $value);

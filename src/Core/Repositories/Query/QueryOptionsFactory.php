@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Zolta\Cqrs\Repositories\Query;
 
+use Zolta\Cqrs\Repositories\Query\Exceptions\InvalidQueryOptionException;
+
 /**
  * Normalizes input payload into a domain AbstractQueryOptions instance.
  *
  * NOTES:
  * - This factory purposely **does not drop** filter keys by default.
  *   Repositories are the authoritative place to whitelist allowed filters/sorts/relations.
- * - If you want pre-sanitization, pass ['strict' => true, 'allowed_filters' => [...], 'allowed_sorts' => [...]]
+ * - Strict mode rejects unsupported filters and sorts instead of silently dropping them.
  */
 final class QueryOptionsFactory
 {
@@ -22,26 +24,30 @@ final class QueryOptionsFactory
         // Default normalization
         $payload = $this->normalizePayload($payload);
 
-        // Strict mode (optional): drop unknown filters/sorts if caller provided allowed lists
+        // Strict mode fails closed. Unknown public query options are never silently ignored.
         if (! empty($payload['strict'])) {
             $allowedFilters = $payload['allowed_filters'] ?? [];
             $allowedSorts = $payload['allowed_sorts'] ?? [];
 
-            if (! empty($allowedFilters) && is_array($payload['filters'])) {
-                $incomingFilters = array_keys((array) $payload['filters']);
-                $payload['filters'] = array_filter(
-                    $payload['filters'],
-                    fn (string $key): bool => $this->isAllowedFilterKey($key, $allowedFilters),
-                    ARRAY_FILTER_USE_KEY
-                );
+            if (is_array($payload['filters'])) {
+                $unknownFilters = array_values(array_filter(
+                    array_keys($payload['filters']),
+                    fn (string $key): bool => ! $this->isAllowedFilterKey($key, $allowedFilters),
+                ));
+                if ($unknownFilters !== []) {
+                    throw new InvalidQueryOptionException('Unsupported filters: '.implode(', ', $unknownFilters));
+                }
             }
 
-            if (! empty($allowedSorts) && ! empty($payload['sort'])) {
-                $payload['sort'] = array_filter((array) $payload['sort'], function ($s) use ($allowedSorts): bool {
+            if (! empty($payload['sort'])) {
+                $unknownSorts = array_values(array_filter((array) $payload['sort'], function ($s) use ($allowedSorts): bool {
                     $f = ltrim((string) $s, '-+');
 
-                    return in_array($f, $allowedSorts, true);
-                });
+                    return ! in_array($f, $allowedSorts, true);
+                }));
+                if ($unknownSorts !== []) {
+                    throw new InvalidQueryOptionException('Unsupported sorts: '.implode(', ', $unknownSorts));
+                }
             }
         }
 

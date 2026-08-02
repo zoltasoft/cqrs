@@ -280,13 +280,27 @@ Framework-agnostic repositories with 12 filter operators, relation loading, pagi
 class UserRepository extends EloquentBaseRepository
 {
     protected array $allowedFilters = ['name', 'email', 'role_id'];
+    protected array $allowedConstraintFields = ['account_id'];
     protected array $allowedRelations = ['role', 'permissions'];
     protected array $filterableRelations = ['role' => ['name']];
+
+    public function forAccount(string $accountId, array $filters = []): iterable
+    {
+        $query = RepositoryQuery::fromOptions(['filters' => $filters])
+            ->withConstraint(RepositoryConstraint::equals('account_id', $accountId));
+
+        return $this->all($query);
+    }
 
     // Built-in operators: eq, ne, gt, gte, lt, lte, like, not_like,
     //                     in, not_in, null, not_null, between
 }
 ```
+
+Mandatory constraints are created by application or infrastructure code, applied with
+`AND` semantics before optional filters, and included in repository cache keys. Raw
+constraint arrays are rejected, undeclared constraint fields fail closed, and a client
+filter cannot replace a constrained field. Do not construct constraints from HTTP input.
 
 Cache layer uses tagged keys with configurable TTL — `RepositoryCache` interface with Laravel, APCu, or null implementations.
 

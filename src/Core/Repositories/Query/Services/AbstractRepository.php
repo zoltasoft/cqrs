@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Zolta\Cqrs\Repositories\Query\Services;
 
 use Zolta\Cqrs\Repositories\Cache\RepositoryCache;
+use Zolta\Cqrs\Repositories\Query\Exceptions\InvalidRepositoryConstraintException;
 use Zolta\Cqrs\Repositories\Query\Interfaces\QueryDefinition;
+use Zolta\Cqrs\Repositories\Query\RepositoryConstraint;
 use Zolta\Cqrs\Repositories\Query\RepositoryQuery;
 use Zolta\Domain\Repositories\Query\AbstractQueryOptions;
 
@@ -19,6 +21,9 @@ abstract class AbstractRepository
 {
     /** @var list<string> */
     protected array $allowedFilters = [];
+
+    /** @var list<string> */
+    protected array $allowedConstraintFields = [];
 
     /** @var array<string,string> */
     protected array $filterOperators = [];
@@ -72,6 +77,7 @@ abstract class AbstractRepository
     protected function finalizeQuery(mixed $query, RepositoryQuery $repositoryQuery): mixed
     {
         $queryDefinition = $this->queryDefinition();
+        $this->applyConstraints($query, $repositoryQuery, $queryDefinition);
         $this->applyFilters($query, $repositoryQuery, $queryDefinition);
         $this->applyIncludes($query, $repositoryQuery->includes());
         $this->applySorting($query, $repositoryQuery->sort(), $queryDefinition);
@@ -135,6 +141,7 @@ abstract class AbstractRepository
             relationFilters: $this->filterableRelations,
             operators: $this->getFilterOperators(),
             defaultOperator: $this->defaultOperator,
+            allowedConstraintFields: $this->allowedConstraintFields,
         );
     }
 
@@ -159,14 +166,7 @@ abstract class AbstractRepository
         $repositoryQuery = $this->repositoryQuery($opts);
         $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
-        $cacheKey = [
-            'filters' => $repositoryQuery->filters(),
-            'include' => $repositoryQuery->includes(),
-            'sort' => $repositoryQuery->sort(),
-            'fields' => $repositoryQuery->fields(),
-            'limit' => $repositoryQuery->limit(),
-            'page' => $repositoryQuery->page(),
-        ];
+        $cacheKey = $this->queryCacheKey($repositoryQuery);
 
         if (! $this->enableReadCaching) {
             return $this->fetchAll($query);
@@ -188,14 +188,7 @@ abstract class AbstractRepository
         $repositoryQuery = $this->repositoryQuery($opts);
         $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
-        $cacheKey = [
-            'filters' => $repositoryQuery->filters(),
-            'include' => $repositoryQuery->includes(),
-            'sort' => $repositoryQuery->sort(),
-            'fields' => $repositoryQuery->fields(),
-            'limit' => $repositoryQuery->limit(),
-            'page' => $repositoryQuery->page(),
-        ];
+        $cacheKey = $this->queryCacheKey($repositoryQuery);
 
         if (! $this->enableReadCaching) {
             return $this->fetchFirst($query);
@@ -259,14 +252,7 @@ abstract class AbstractRepository
         $limit = $repositoryQuery->limit() ?? 25;
         $page = $repositoryQuery->page() ?? 1;
 
-        $cacheKey = [
-            'filters' => $repositoryQuery->filters(),
-            'include' => $repositoryQuery->includes(),
-            'sort' => $repositoryQuery->sort(),
-            'fields' => $repositoryQuery->fields(),
-            'limit' => $limit,
-            'page' => $page,
-        ];
+        $cacheKey = $this->queryCacheKey($repositoryQuery, ['limit' => $limit, 'page' => $page]);
 
         if (! $this->enableReadCaching) {
             return $this->fetchPaginated($query, $page, $limit);
@@ -303,9 +289,7 @@ abstract class AbstractRepository
         $repositoryQuery = $this->repositoryQuery($opts);
         $query = $this->finalizeQuery($this->buildQuery($repositoryQuery), $repositoryQuery);
 
-        $cacheKey = [
-            'filters' => $repositoryQuery->filters(),
-        ];
+        $cacheKey = $this->queryCacheKey($repositoryQuery);
 
         if (! $this->enableReadCaching) {
             return $this->fetchCount($query);
@@ -332,6 +316,27 @@ abstract class AbstractRepository
         return $this->cacheTtlSeconds > 0 ? $this->cacheTtlSeconds : 300;
     }
 
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    protected function queryCacheKey(RepositoryQuery $repositoryQuery, array $overrides = []): array
+    {
+        return array_replace([
+            'filters' => $repositoryQuery->filters(),
+            'constraints' => array_map(
+                static fn (RepositoryConstraint $repositoryConstraint): array => $repositoryConstraint->toArray(),
+                $repositoryQuery->constraints(),
+            ),
+            'include' => $repositoryQuery->includes(),
+            'sort' => $repositoryQuery->sort(),
+            'fields' => $repositoryQuery->fields(),
+            'limit' => $repositoryQuery->limit(),
+            'page' => $repositoryQuery->page(),
+            'context' => $repositoryQuery->context(),
+        ], $overrides);
+    }
+
     // ---- Abstract hooks implemented by framework adapters ----
 
     /**
@@ -343,6 +348,19 @@ abstract class AbstractRepository
      * Return a cache adapter.
      */
     abstract protected function cache(): RepositoryCache;
+
+    /**
+     * Apply trusted mandatory constraints before optional filters.
+     *
+     * Adapters that do not implement constraints fail closed while retaining backwards
+     * compatibility for existing unconstrained repository implementations.
+     */
+    protected function applyConstraints(mixed $query, RepositoryQuery $repositoryQuery, QueryDefinition $queryDefinition): void
+    {
+        if ($repositoryQuery->constraints() !== []) {
+            throw new InvalidRepositoryConstraintException('This repository adapter does not support mandatory constraints.');
+        }
+    }
 
     /**
      * Apply filters to the query object.

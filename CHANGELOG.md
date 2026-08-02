@@ -9,8 +9,21 @@ This project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+---
+
+## [2.0.0] - 2026-08-02
+
+### Added
+- Added immutable mandatory repository constraints with `eq`, `in`, `null`, and `not_null` operators
+- Added repository allowlists for constraint fields and constraint-aware cache keys
+- Added unit and Eloquent integration coverage for owner isolation and fail-closed queries
+
 ### Changed
-- *(Nothing yet)*
+- Strict query options and Eloquent repository filters now reject unsupported fields and operators instead of silently ignoring them
+- Mandatory constraints are applied before optional filters and cannot be replaced by client filters
+
+### Security
+- Added framework-agnostic, fail-closed ownership and tenancy scoping for repository queries
 
 ---
 
@@ -57,7 +70,8 @@ This project adheres to Semantic Versioning.
 
 ## Version comparison links
 
-[Unreleased]: https://github.com/zoltasoft/cqrs/compare/v1.0.3...HEAD  
+[Unreleased]: https://github.com/zoltasoft/cqrs/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/zoltasoft/cqrs/compare/v1.0.3...v2.0.0
 [1.0.3]: https://github.com/zoltasoft/cqrs/compare/v1.0.2...v1.0.3  
 [1.0.2]: https://github.com/zoltasoft/cqrs/compare/v1.0.1...v1.0.2  
 [1.0.1]: https://github.com/zoltasoft/cqrs/compare/v1.0.0...v1.0.1  

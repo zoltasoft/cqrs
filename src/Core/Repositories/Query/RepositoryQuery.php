@@ -21,6 +21,7 @@ final readonly class RepositoryQuery
      * @param  list<string>  $sort
      * @param  list<string>  $fields
      * @param  array<string, mixed>  $context
+     * @param  list<RepositoryConstraint>  $constraints
      */
     public function __construct(
         private array $filters = [],
@@ -30,6 +31,7 @@ final readonly class RepositoryQuery
         private ?int $page = null,
         private array $fields = [],
         private array $context = [],
+        private array $constraints = [],
     ) {}
 
     /**
@@ -49,7 +51,7 @@ final readonly class RepositoryQuery
 
         $filters = self::normalizeFilters($payload['filters'] ?? []);
 
-        $reservedKeys = ['filters', 'include', 'sort', 'limit', 'page', 'fields', 'context'];
+        $reservedKeys = ['filters', 'include', 'sort', 'limit', 'page', 'fields', 'context', 'constraints'];
         $topLevelFilters = array_diff_key($payload, array_flip($reservedKeys));
         if ($topLevelFilters !== []) {
             $filters = array_merge($filters, $topLevelFilters);
@@ -68,6 +70,14 @@ final readonly class RepositoryQuery
             $context = (array) $context;
         }
 
+        $constraints = $payload['constraints'] ?? [];
+        if (! is_array($constraints) || array_filter(
+            $constraints,
+            static fn (mixed $constraint): bool => $constraint instanceof RepositoryConstraint,
+        ) !== $constraints) {
+            throw new \InvalidArgumentException('Repository constraints must be trusted RepositoryConstraint objects.');
+        }
+
         return new self(
             filters: $filters,
             includes: $include,
@@ -76,6 +86,7 @@ final readonly class RepositoryQuery
             page: $page,
             fields: $fields,
             context: $context,
+            constraints: array_values($constraints),
         );
     }
 
@@ -138,6 +149,31 @@ final readonly class RepositoryQuery
         return $this->context;
     }
 
+    /** @return list<RepositoryConstraint> */
+    public function constraints(): array
+    {
+        return $this->constraints;
+    }
+
+    public function withConstraint(RepositoryConstraint $repositoryConstraint): self
+    {
+        return $this->withConstraints($repositoryConstraint);
+    }
+
+    public function withConstraints(RepositoryConstraint ...$constraints): self
+    {
+        return new self(
+            filters: $this->filters,
+            includes: $this->includes,
+            sort: $this->sort,
+            limit: $this->limit,
+            page: $this->page,
+            fields: $this->fields,
+            context: $this->context,
+            constraints: [...$this->constraints, ...$constraints],
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $context
      */
@@ -151,6 +187,7 @@ final readonly class RepositoryQuery
             page: $this->page,
             fields: $this->fields,
             context: array_merge($this->context, $context),
+            constraints: $this->constraints,
         );
     }
 
@@ -164,7 +201,8 @@ final readonly class RepositoryQuery
      *     limit: ?int,
      *     page: ?int,
      *     fields: list<string>,
-     *     context: array<string,mixed>
+     *     context: array<string,mixed>,
+     *     constraints: list<RepositoryConstraint>
      * }
      */
     public function toArray(): array
@@ -177,6 +215,7 @@ final readonly class RepositoryQuery
             'page' => $this->page,
             'fields' => $this->fields,
             'context' => $this->context,
+            'constraints' => $this->constraints,
         ];
     }
 

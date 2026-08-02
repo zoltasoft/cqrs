@@ -20,6 +20,7 @@ final class QueryDefinition
      * @param  list<string>  $allowedFilters
      * @param  array<string, list<string>|null>  $relationFilters
      * @param  array<string, string>  $operators
+     * @param  list<string>  $allowedConstraintFields
      */
     public function __construct(
         private readonly array $allowedIncludes = [],
@@ -27,6 +28,7 @@ final class QueryDefinition
         private array $relationFilters = [],
         private readonly array $operators = [],
         private readonly string $defaultOperator = 'eq',
+        private readonly array $allowedConstraintFields = [],
     ) {}
 
     /**
@@ -69,6 +71,17 @@ final class QueryDefinition
     public function allowsFilter(string $field): bool
     {
         return in_array($field, $this->allowedFilters, true);
+    }
+
+    /** @return list<string> */
+    public function allowedConstraintFields(): array
+    {
+        return $this->allowedConstraintFields;
+    }
+
+    public function allowsConstraint(string $field): bool
+    {
+        return in_array($field, $this->allowedConstraintFields, true);
     }
 
     public function allowsRelation(string $relation): bool
