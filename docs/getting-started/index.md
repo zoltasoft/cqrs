@@ -31,26 +31,30 @@ Publish the configuration file:
 php artisan vendor:publish --tag=zolta-cqrs-config
 ```
 
-This creates `config/zolta.php`:
+This creates `config/zolta.php`. New applications should nest CQRS settings under `cqrs`:
 
 ```php
 return [
-    // Paths to scan for command handlers and validators
-    'commands' => [
-        app_path('Application/Commands'),
-    ],
+    'cqrs' => [
+        // Paths to scan for command handlers and validators
+        'commands' => [
+            app_path('Application/Commands'),
+        ],
 
-    // Paths to scan for query handlers
-    'queries' => [
-        app_path('Application/Queries'),
-    ],
+        // Paths to scan for query handlers
+        'queries' => [
+            app_path('Application/Queries'),
+        ],
 
-    // Paths to scan for event listeners
-    'events' => [
-        app_path('Infrastructure/Events'),
+        // Paths to scan for infrastructure event listeners
+        'infrastructure_events' => [
+            app_path('Infrastructure/Events'),
+        ],
     ],
 ];
 ```
+
+Existing top-level CQRS settings, such as `zolta.commands` and `zolta.cache`, remain supported for backwards compatibility. New configuration should use `zolta.cqrs.*`.
 
 ## Project structure
 

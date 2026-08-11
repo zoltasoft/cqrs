@@ -28,13 +28,13 @@ Laravel gives you Eloquent, queues, and events — excellent infrastructure. But
 
 ### What Zolta CQRS does differently
 
-| Approach | How it works | Trade-off |
-|----------|-------------|-----------|
-| Ecotone | Full messaging framework with aggregates, projections, sagas | Heavyweight, steep learning curve, all-or-nothing |
-| Broadway | Event sourcing toolkit | Requires event sourcing commitment |
-| Spatie Event Sourcing | Laravel event sourcing | Event-sourcing only, no command/query separation |
-| Tactician | Simple command bus | Command-only, no queries, no Result monads, no orchestration |
-| **Zolta CQRS** | **Decorator-based buses + monads + Application Service orchestration** | **Pragmatic CQRS without event sourcing tax** |
+| Approach              | How it works                                                           | Trade-off                                                    |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Ecotone               | Full messaging framework with aggregates, projections, sagas           | Heavyweight, steep learning curve, all-or-nothing            |
+| Broadway              | Event sourcing toolkit                                                 | Requires event sourcing commitment                           |
+| Spatie Event Sourcing | Laravel event sourcing                                                 | Event-sourcing only, no command/query separation             |
+| Tactician             | Simple command bus                                                     | Command-only, no queries, no Result monads, no orchestration |
+| **Zolta CQRS**        | **Decorator-based buses + monads + Application Service orchestration** | **Pragmatic CQRS without event sourcing tax**                |
 
 Zolta CQRS occupies a pragmatic middle ground: you get clean command/query separation, type-safe results, automatic event dispatching, and transactional orchestration — without being forced into full event sourcing. Use as much or as little as your project needs.
 
@@ -61,15 +61,19 @@ Laravel auto-discovers the service provider. No manual registration needed.
 php artisan vendor:publish --tag=zolta-cqrs-config
 ```
 
-This creates `config/zolta.php` with paths to scan for handlers:
+This creates `config/zolta.php`. New applications should put CQRS settings below the `cqrs` key:
 
 ```php
 return [
-    'commands' => [app_path('Application/Commands')],
-    'queries'  => [app_path('Application/Queries')],
-    'events'   => [app_path('Infrastructure/Events')],
+    'cqrs' => [
+        'commands' => [app_path('Application/Commands')],
+        'queries' => [app_path('Application/Queries')],
+        'infrastructure_events' => [app_path('Infrastructure/Events')],
+    ],
 ];
 ```
+
+Existing top-level settings such as `zolta.commands` and `zolta.cache` remain supported during migration.
 
 ---
 
@@ -323,14 +327,14 @@ $command = $cqrs->make(CreateUserCommand::class, [
 
 Benchmarked on a real application (Laravel 12, PHP 8.3, SQLite):
 
-| Component | Time (warm) |
-|-----------|-------------|
-| CommandBus dispatch overhead | < 1ms |
-| QueryBus ask overhead | < 1ms |
-| ApplicationService wrapping | < 2ms |
-| Message hydration (cached class) | < 0.6ms |
-| Event dispatching | < 1ms |
-| **Total CQRS overhead per request** | **< 5ms** |
+| Component                           | Time (warm) |
+| ----------------------------------- | ----------- |
+| CommandBus dispatch overhead        | < 1ms       |
+| QueryBus ask overhead               | < 1ms       |
+| ApplicationService wrapping         | < 2ms       |
+| Message hydration (cached class)    | < 0.6ms     |
+| Event dispatching                   | < 1ms       |
+| **Total CQRS overhead per request** | **< 5ms**   |
 
 The dominant costs in any request are your application logic — database queries, bcrypt hashing, external API calls. The CQRS layer stays invisible.
 
@@ -338,21 +342,21 @@ The dominant costs in any request are your application logic — database querie
 
 ## Features at a glance
 
-| Feature | Details |
-|---------|---------|
-| **Command bus** | 5-layer decorator chain: sync → validating → event-dispatching → queued → worker-aware |
-| **Query bus** | In-memory with automatic handler resolution and dependency injection |
-| **Result monad** | `success(value, events)` / `failure(error, events)` with event accumulation |
-| **Option monad** | `some(values)` / `none()` / `error(throwable)` — null-safe queries |
-| **ApplicationService** | Transactional orchestration, capture store, placeholder resolution, response mapping |
-| **Handler discovery** | `#[HandlesCommand]` · `#[HandlesQuery]` · `#[ValidatesCommand]` · `#[HandlesDomainEvent]` |
-| **Argument resolution** | Container injection + command/query type matching + variadic support |
-| **Message hydration** | Reflection-cached construction from arrays, nested VO support via Forge |
-| **Repository** | Abstract base + Eloquent impl with 12 filter operators, caching, pagination, sorting |
-| **Transactions** | Auto-commit on `Result::success`, auto-rollback on `Result::failure` |
-| **Domain events** | Aggregates record → Results carry → bus dispatches post-commit |
-| **Queue integration** | `ShouldQueue` marker → automatic defer via `ExecuteCommandJob` |
-| **Framework agnostic** | PSR-11 core, Laravel adapter with 13 service providers |
+| Feature                 | Details                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| **Command bus**         | 5-layer decorator chain: sync → validating → event-dispatching → queued → worker-aware    |
+| **Query bus**           | In-memory with automatic handler resolution and dependency injection                      |
+| **Result monad**        | `success(value, events)` / `failure(error, events)` with event accumulation               |
+| **Option monad**        | `some(values)` / `none()` / `error(throwable)` — null-safe queries                        |
+| **ApplicationService**  | Transactional orchestration, capture store, placeholder resolution, response mapping      |
+| **Handler discovery**   | `#[HandlesCommand]` · `#[HandlesQuery]` · `#[ValidatesCommand]` · `#[HandlesDomainEvent]` |
+| **Argument resolution** | Container injection + command/query type matching + variadic support                      |
+| **Message hydration**   | Reflection-cached construction from arrays, nested VO support via Forge                   |
+| **Repository**          | Abstract base + Eloquent impl with 12 filter operators, caching, pagination, sorting      |
+| **Transactions**        | Auto-commit on `Result::success`, auto-rollback on `Result::failure`                      |
+| **Domain events**       | Aggregates record → Results carry → bus dispatches post-commit                            |
+| **Queue integration**   | `ShouldQueue` marker → automatic defer via `ExecuteCommandJob`                            |
+| **Framework agnostic**  | PSR-11 core, Laravel adapter with 13 service providers                                    |
 
 ---
 
@@ -375,11 +379,11 @@ Zolta CQRS is the **application layer** — it bridges domain logic and transpor
 
 When used together: **HTTP** resolves the pipeline via attributes → **Forge** hydrates the command with validated VOs → **CQRS** dispatches through the bus, captures events, wraps transactions → **HTTP** transforms and returns the response. Sub-10ms package overhead for the entire vertical stack.
 
-| Package | Layer | Link |
-|---------|-------|------|
-| zolta/forge | Domain | [`packages/forge`](../zolta-forge) |
-| **zolta/cqrs** | **Application** | You are here |
-| zolta/http | Transport | [`packages/http`](../zolta-http) |
+| Package        | Layer           | Link                               |
+| -------------- | --------------- | ---------------------------------- |
+| zolta/forge    | Domain          | [`packages/forge`](../zolta-forge) |
+| **zolta/cqrs** | **Application** | You are here                       |
+| zolta/http     | Transport       | [`packages/http`](../zolta-http)   |
 
 ---
 

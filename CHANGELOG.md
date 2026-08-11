@@ -11,6 +11,21 @@ This project adheres to Semantic Versioning.
 
 ---
 
+## [2.1.0] - 2026-08-11
+
+### Added
+- Added the canonical `zolta.cqrs.*` configuration namespace for command, query, event, cache, map, and scanner settings
+- Added regression coverage for canonical and legacy CQRS configuration resolution
+
+### Changed
+- Updated CQRS configuration publishing to use the `zolta-cqrs-config` tag
+- Restored the released `zolta/forge ^1.0` dependency constraint for package consumers
+
+### Deprecated
+- Top-level `zolta.*` CQRS configuration keys remain supported for backwards compatibility; new applications should use `zolta.cqrs.*`
+
+---
+
 ## [2.0.0] - 2026-08-02
 
 ### Added
@@ -70,7 +85,8 @@ This project adheres to Semantic Versioning.
 
 ## Version comparison links
 
-[Unreleased]: https://github.com/zoltasoft/cqrs/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/zoltasoft/cqrs/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/zoltasoft/cqrs/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/zoltasoft/cqrs/compare/v1.0.3...v2.0.0
 [1.0.3]: https://github.com/zoltasoft/cqrs/compare/v1.0.2...v1.0.3  
 [1.0.2]: https://github.com/zoltasoft/cqrs/compare/v1.0.1...v1.0.2  
